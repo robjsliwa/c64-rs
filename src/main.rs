@@ -1,4 +1,4 @@
-use crate::cpu::CPU;
+use crate::cpu::Cpu;
 use crate::memory::Memory;
 
 mod cpu;
@@ -6,7 +6,7 @@ mod memory;
 
 fn main() {
     let mut mem = Memory::new();
-    let mut cpu = CPU::new(&mut mem);
+    let mut cpu = Cpu::new(&mut mem);
 
     // TEMP: Load the machine code into memory (for our sample program)
     // LDX #$03      ; Load X register with the number 3

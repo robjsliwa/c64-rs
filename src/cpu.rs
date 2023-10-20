@@ -1,6 +1,6 @@
 use crate::memory::Memory;
 
-pub struct CPU<'a> {
+pub struct Cpu<'a> {
     pub pc: u16,            // Program Counter
     pub sp: u8,             // Stack Pointer
     pub a: u8,              // Accumulator
@@ -20,9 +20,9 @@ pub struct CPU<'a> {
     negative: bool,
 }
 
-impl<'a> CPU<'a> {
+impl<'a> Cpu<'a> {
     pub fn new(memory: &'a mut Memory) -> Self {
-        CPU {
+        Cpu {
             pc: 0,
             sp: 0xFF, // Stack starts at 0xFF
             a: 0,
@@ -485,11 +485,13 @@ impl<'a> CPU<'a> {
 
         // Load interrupt vector into program counter
         self.pc = self.memory.read_word(0xFFFE);
+
+        self.tick(7);
     }
 
     // NOP: No Operation
     fn op_nop(&mut self) {
-        // Do nothing
+        self.tick(2);
     }
 
     // Helper function to update the Zero and Negative flags
