@@ -1,10 +1,26 @@
-use crate::emuc64::{CPU, Memory};
+use crate::cpu::CPU;
+use crate::memory::Memory;
 
-mod emuc64;
+mod cpu;
+mod memory;
 
 fn main() {
     let mut mem = Memory::new();
-    let mut cpu = CPU::new();
+    let mut cpu = CPU::new(&mut mem);
+
+    // TEMP: Load the machine code into memory (for our sample program)
+    // LDX #$03      ; Load X register with the number 3
+    // LDA #$05      ; Load accumulator with the number 5
+    // ADC #$00      ; Add 0 to accumulator (effectively adding X because of the previously set carry)
+    // STA $0200     ; Store accumulator (result) at memory location $0200
+    // JMP $0004     ; Jump to this instruction (creates an infinite loop)
+
+    let program: [u8; 12] = [
+        0xA2, 0x03, 0xA9, 0x05, 0x69, 0x00, 0x8D, 0x00, 0x02, 0x4C, 0x04, 0x00,
+    ];
+    for (i, &byte) in program.iter().enumerate() {
+        cpu.write_memory(i as u16, byte);
+    }
 
     loop {
         let mut input = String::new();
@@ -14,7 +30,7 @@ fn main() {
             .expect("Failed to read command");
         match input.trim() {
             "step" => {
-                cpu.step(&mut mem);
+                cpu.step();
                 println!(
                     "Stepped. PC: {:#04X}, A: {:#02X}, X: {:#02X}, Y: {:#02X}",
                     cpu.pc, cpu.a, cpu.x, cpu.y
@@ -37,7 +53,7 @@ fn main() {
                 let value =
                     u8::from_str_radix(value_input.trim(), 16).expect("Failed to parse value");
 
-                mem.write_byte(address, value);
+                cpu.write_memory(address, value);
                 println!("Loaded {:#02X} into {:#04X}", value, address);
             }
             "display" => {
@@ -50,7 +66,7 @@ fn main() {
                     u16::from_str_radix(address_input.trim(), 16).expect("Failed to parse address");
 
                 for i in 0..0x10 {
-                    print!("{:#02X} ", mem.read_byte(start_address + i));
+                    print!("{:#02X} ", cpu.read_memory(start_address + i));
                 }
                 println!();
             }
