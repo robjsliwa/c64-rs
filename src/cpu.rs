@@ -69,6 +69,11 @@ impl<'a> CPU<'a> {
         }
     }
 
+    // Advenced cycle count
+    fn tick(&mut self, cycles: u32) {
+        self.cycles += cycles;
+    }
+
     // Addressing mode example
     fn addr_indirect_x(&self) -> u16 {
         // TODO: Implement indirect X addressing mode
