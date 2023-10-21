@@ -2,10 +2,40 @@ pub struct Memory {
     mem_ram: Vec<u8>, // RAM buffer
     mem_rom: Vec<u8>, // ROM buffer
     banks: [u8; 7],   // Memory bank configurations
-                      // TODO: Add references to other devices like Vic, Cia1, Cia2, and Sid when they are implemented
+                      // vic: Option<*mut Vic>, // Using raw pointers for external device references
+                      // cia1: Option<*mut Cia1>,
+                      // cia2: Option<*mut Cia2>,
+                      // sid: Option<*mut Sid>,
 }
 
 impl Memory {
+    pub const MEM_SIZE: usize = 0x10000;
+    pub const BASE_ADDR_BASIC: u16 = 0xa000;
+    pub const BASE_ADDR_KERNAL: u16 = 0xe000;
+    pub const BASE_ADDR_STACK: u16 = 0x0100;
+    pub const BASE_ADDR_SCREEN: u16 = 0x0400;
+    pub const BASE_ADDR_CHARS: u16 = 0xd000;
+    pub const BASE_ADDR_BITMAP: u16 = 0x0000;
+    pub const BASE_ADDR_COLOR_RAM: u16 = 0xd800;
+    pub const ADDR_RESET_VECTOR: u16 = 0xfffc;
+    pub const ADDR_IRQ_VECTOR: u16 = 0xfffe;
+    pub const ADDR_NMI_VECTOR: u16 = 0xfffa;
+    pub const ADDR_DATA_DIRECTION: u16 = 0x0000;
+    pub const ADDR_MEMORY_LAYOUT: u16 = 0x0001;
+    pub const ADDR_COLOR_RAM: u16 = 0xd800;
+    pub const ADDR_ZERO_PAGE: u16 = 0x0000;
+    pub const ADDR_VIC_FIRST_PAGE: u16 = 0xd000;
+    pub const ADDR_VIC_LAST_PAGE: u16 = 0xd300;
+    pub const ADDR_CIA1_PAGE: u16 = 0xdc00;
+    pub const ADDR_CIA2_PAGE: u16 = 0xdd00;
+    pub const ADDR_BASIC_FIRST_PAGE: u16 = 0xa000;
+    pub const ADDR_BASIC_LAST_PAGE: u16 = 0xbf00;
+    pub const ADDR_KERNAL_FIRST_PAGE: u16 = 0xe000;
+    pub const ADDR_KERNAL_LAST_PAGE: u16 = 0xff00;
+    pub const LORAM: u8 = 1 << 0;
+    pub const HIRAM: u8 = 1 << 1;
+    pub const CHAREN: u8 = 1 << 2;
+
     pub fn new() -> Self {
         let mem_ram = vec![0; 65536]; // 64KB buffer initialized to zero
         let mem_rom = vec![0; 65536]; // 64KB buffer initialized to zero

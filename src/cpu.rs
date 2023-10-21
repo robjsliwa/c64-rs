@@ -63,21 +63,88 @@ impl<'a> Cpu<'a> {
 
         match opcode {
             0x00 => self.op_brk(),
-            0x01 => self.op_ora(self.addr_indirect_x()),
-            // ... Add other opcodes here
+            0x01 => {
+                let addr = self.addr_indx();
+                self.op_ora(addr, 6)
+            }
+            0x05 => {
+                let addr = self.addr_zero();
+                self.op_ora(addr, 3)
+            }
+            0x06 => {
+                let addr = self.addr_zero();
+                self.op_asl(addr, 5)
+            }
             _ => panic!("Unknown opcode: {:02X}", opcode),
         }
+    }
+
+    // ---- Helper Functions ----
+    pub fn load_byte(&self, addr: u16) -> u8 {
+        self.memory.read_byte(addr)
+    }
+
+    pub fn push(&mut self, v: u8) {
+        let addr = Memory::BASE_ADDR_STACK + self.sp as u16;
+        self.memory.write_byte(addr, v);
+        self.sp -= 1;
+    }
+
+    pub fn pop(&mut self) -> u8 {
+        let addr = (self.sp + 1) as u16 + Memory::BASE_ADDR_STACK;
+        self.sp += 1;
+        self.load_byte(addr)
+    }
+
+    pub fn fetch_op(&mut self) -> u8 {
+        let opcode = self.load_byte(self.pc);
+        self.pc += 1;
+        opcode
+    }
+
+    pub fn fetch_opw(&mut self) -> u16 {
+        let retval = self.memory.read_word(self.pc);
+        self.pc += 2;
+        retval
+    }
+
+    pub fn addr_zero(&mut self) -> u16 {
+        self.fetch_op() as u16
+    }
+
+    pub fn addr_zerox(&mut self) -> u16 {
+        (self.fetch_op() as u16 + self.x as u16) & 0xff
+    }
+
+    pub fn addr_zeroy(&mut self) -> u16 {
+        (self.fetch_op() as u16 + self.y as u16) & 0xff
+    }
+
+    pub fn addr_abs(&mut self) -> u16 {
+        self.fetch_opw()
+    }
+
+    pub fn addr_absy(&mut self) -> u16 {
+        self.fetch_opw() + self.y as u16
+    }
+
+    pub fn addr_absx(&mut self) -> u16 {
+        self.fetch_opw() + self.x as u16
+    }
+
+    pub fn addr_indx(&mut self) -> u16 {
+        let addr = (self.addr_zero() + self.x as u16) & 0xff;
+        self.memory.read_word(addr)
+    }
+
+    pub fn addr_indy(&mut self) -> u16 {
+        let addr = self.addr_zero();
+        self.memory.read_word(addr) + self.y as u16
     }
 
     // Advenced cycle count
     fn tick(&mut self, cycles: u32) {
         self.cycles += cycles;
-    }
-
-    // Addressing mode example
-    fn addr_indirect_x(&self) -> u16 {
-        // TODO: Implement indirect X addressing mode
-        0 // Placeholder return value
     }
 
     /// Writes a byte to the memory the CPU is using
@@ -235,9 +302,10 @@ impl<'a> Cpu<'a> {
     }
 
     // ORA: Logical OR
-    fn op_ora(&mut self, addr: u16) {
+    fn op_ora(&mut self, addr: u16, cycles: u32) {
         self.a |= self.memory.read_byte(addr);
         self.update_zero_negative_flags(self.a);
+        self.tick(cycles);
     }
 
     // EOR: Exclusive OR
@@ -247,12 +315,13 @@ impl<'a> Cpu<'a> {
     }
 
     // ASL: Arithmetic Shift Left
-    fn op_asl(&mut self, addr: u16) {
+    fn op_asl(&mut self, addr: u16, cycles: u32) {
         let mut value = self.memory.read_byte(addr);
         self.carry = (value & 0x80) != 0;
         value <<= 1;
         self.memory.write_byte(addr, value);
         self.update_zero_negative_flags(value);
+        self.tick(cycles);
     }
 
     // LSR: Logical Shift Right
