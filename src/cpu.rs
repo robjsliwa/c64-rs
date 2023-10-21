@@ -75,6 +75,7 @@ impl<'a> Cpu<'a> {
                 let addr = self.addr_zero();
                 self.op_asl(addr, 5)
             }
+            0x08 => self.op_php(),
             _ => panic!("Unknown opcode: {:02X}", opcode),
         }
     }
@@ -371,6 +372,7 @@ impl<'a> Cpu<'a> {
         let status = self.status_from_flags();
         self.memory.write_byte(0x0100 + self.sp as u16, status);
         self.sp = self.sp.wrapping_sub(1);
+        self.tick(3);
     }
 
     // PLA: Pull Accumulator from Stack
