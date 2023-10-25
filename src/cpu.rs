@@ -76,6 +76,499 @@ impl<'a> Cpu<'a> {
                 self.op_asl(addr, 5)
             }
             0x08 => self.op_php(),
+            0x09 => {
+                let addr = self.fetch_op();
+                self.op_ora(addr.into(), 2);
+            }
+            0x0A => self.op_asl_a(),
+            0x0D => {
+                let addr = self.addr_abs();
+                self.op_ora(addr, 4);
+            }
+            0x0E => {
+                let addr = self.addr_abs();
+                self.op_asl(addr, 6);
+            }
+            0x10 => self.op_bpl(),
+            0x11 => {
+                let addr = self.addr_indy();
+                self.op_ora(addr, 5);
+            }
+            0x15 => {
+                let addr = self.addr_zeroy();
+                self.op_ora(addr, 4);
+            }
+            0x16 => {
+                let addr = self.addr_zeroy();
+                self.op_asl(addr, 6);
+            }
+            0x18 => self.op_clc(),
+            0x19 => {
+                let addr = self.addr_absy();
+                self.op_ora(addr, 4);
+            }
+            0x1D => {
+                let addr = self.addr_absx();
+                self.op_ora(addr, 4);
+            }
+            0x1E => {
+                let addr = self.addr_absx();
+                self.op_asl(addr, 7);
+            }
+            0x20 => {
+                let addr = self.fetch_opw();
+                self.op_jsr(addr);
+            }
+            0x24 => {
+                let addr = self.addr_zero();
+                self.op_bit(addr, 3);
+            }
+            0x25 => {
+                let addr = self.addr_zero();
+                self.op_and(addr, 3);
+            }
+            0x26 => {
+                let addr = self.addr_zero();
+                self.op_rol(addr, 5);
+            }
+            0x28 => self.op_plp(),
+            0x29 => {
+                let addr = self.fetch_op();
+                self.op_and(addr.into(), 2);
+            }
+            0x2A => self.op_rol_a(),
+            0x2C => {
+                let addr = self.addr_abs();
+                self.op_bit(addr, 4);
+            }
+            0x2D => {
+                let addr = self.addr_abs();
+                self.op_and(addr, 4);
+            }
+            0x2E => {
+                let addr = self.addr_abs();
+                self.op_rol(addr, 6);
+            }
+            0x30 => self.op_bmi(),
+            0x31 => {
+                let addr = self.addr_indy();
+                self.op_and(addr, 5);
+            }
+            0x35 => {
+                let addr = self.addr_zeroy();
+                self.op_and(addr, 4);
+            }
+            0x36 => {
+                let addr = self.addr_zeroy();
+                self.op_rol(addr, 6);
+            }
+            0x38 => self.op_sec(),
+            0x39 => {
+                let addr = self.addr_absy();
+                self.op_and(addr, 4);
+            }
+            0x3D => {
+                let addr = self.addr_absx();
+                self.op_and(addr, 4);
+            }
+            0x3E => {
+                let addr = self.addr_absx();
+                self.op_rol(addr, 7);
+            }
+            0x40 => self.op_rti(),
+            0x41 => {
+                let addr = self.addr_indx();
+                self.op_eor(addr, 6);
+            }
+            0x45 => {
+                let addr = self.addr_zero();
+                self.op_eor(addr, 3);
+            }
+            0x46 => {
+                let addr = self.addr_zero();
+                self.op_lsr(addr, 5);
+            }
+            0x48 => self.op_pha(),
+            0x49 => {
+                let addr = self.fetch_op();
+                self.op_eor(addr.into(), 2);
+            }
+            0x4A => self.op_lsr_a(),
+            0x4C => {
+                let addr = self.addr_abs();
+                self.op_jmp(addr);
+            }
+            0x4D => {
+                let addr = self.addr_abs();
+                self.op_eor(addr, 4);
+            }
+            0x4E => {
+                let addr = self.addr_abs();
+                self.op_lsr(addr, 6);
+            }
+            0x50 => {
+                let offset = self.fetch_op() as i8;
+                self.op_bvc(offset);
+            }
+            0x51 => {
+                let addr = self.addr_indy();
+                self.op_eor(addr, 5);
+            }
+            0x55 => {
+                let addr = self.addr_zerox();
+                self.op_eor(addr, 4);
+            }
+            0x56 => {
+                let addr = self.addr_zerox();
+                self.op_lsr(addr, 6);
+            }
+            0x58 => self.op_cli(),
+            0x59 => {
+                let addr = self.addr_absy();
+                self.op_eor(addr, 4);
+            }
+            0x5D => {
+                let addr = self.addr_absx();
+                self.op_eor(addr, 4);
+            }
+            0x5E => {
+                let addr = self.addr_absx();
+                self.op_lsr(addr, 7);
+            }
+            0x60 => self.op_rts(),
+            0x61 => {
+                let addr = self.addr_indx();
+                self.op_adc(addr, 6);
+            }
+            0x65 => {
+                let addr = self.addr_zero();
+                self.op_adc(addr, 3);
+            }
+            0x66 => {
+                let addr = self.addr_zero();
+                self.op_ror(addr, 5);
+            }
+            0x68 => self.op_pla(),
+            0x69 => {
+                let addr = self.fetch_op();
+                self.op_adc(addr.into(), 2);
+            }
+            0x6A => self.op_ror_a(),
+            0x6C => {
+                let addr = self.fetch_opw();
+                self.op_jmp_indirect(addr);
+            }
+            0x6D => {
+                let addr = self.addr_abs();
+                self.op_adc(addr, 4);
+            }
+            0x6E => {
+                let addr = self.addr_abs();
+                self.op_ror(addr, 6);
+            }
+            0x70 => {
+                let offset = self.fetch_op() as i8;
+                self.op_bvs(offset);
+            }
+            0x71 => {
+                let addr = self.addr_indy();
+                self.op_adc(addr, 5);
+            }
+            0x75 => {
+                let addr = self.addr_zerox();
+                self.op_adc(addr, 4);
+            }
+            0x76 => {
+                let addr = self.addr_zerox();
+                self.op_ror(addr, 6);
+            }
+            0x78 => self.op_sei(),
+            0x79 => {
+                let addr = self.addr_absy();
+                self.op_adc(addr, 4);
+            }
+            0x7D => {
+                let addr = self.addr_absx();
+                self.op_adc(addr, 4);
+            }
+            0x7E => {
+                let addr = self.addr_absx();
+                self.op_ror(addr, 7);
+            }
+            0x81 => {
+                let addr = self.addr_indx();
+                self.op_sta(addr, 6);
+            }
+            0x84 => {
+                let addr = self.addr_zero();
+                self.op_sty(addr, 3);
+            }
+            0x85 => {
+                let addr = self.addr_zero();
+                self.op_sta(addr, 3);
+            }
+            0x86 => {
+                let addr = self.addr_zero();
+                self.op_stx(addr, 3);
+            }
+            0x88 => self.op_dey(),
+            0x8A => self.op_txa(),
+            0x8C => {
+                let addr = self.addr_abs();
+                self.op_sty(addr, 4);
+            }
+            0x8D => {
+                let addr = self.addr_abs();
+                self.op_sta(addr, 4);
+            }
+            0x8E => {
+                let addr = self.addr_abs();
+                self.op_stx(addr, 4);
+            }
+            0x90 => {
+                let offset = self.fetch_op() as i8;
+                self.op_bcc(offset);
+            }
+            0x91 => {
+                let addr = self.addr_indy();
+                self.op_sta(addr, 6);
+            }
+            0x94 => {
+                let addr = self.addr_zerox();
+                self.op_sty(addr, 4);
+            }
+            0x95 => {
+                let addr = self.addr_zerox();
+                self.op_sta(addr, 4);
+            }
+            0x96 => {
+                let addr = self.addr_zeroy();
+                self.op_stx(addr, 4);
+            }
+            0x98 => self.op_tya(),
+            0x99 => {
+                let addr = self.addr_absy();
+                self.op_sta(addr, 5);
+            }
+            0x9A => self.op_txs(),
+            0x9D => {
+                let addr = self.addr_absx();
+                self.op_sta(addr, 5);
+            }
+            0xA0 => {
+                let addr = self.fetch_op();
+                self.op_ldy(addr.into(), 2);
+            }
+            0xA1 => {
+                let addr = self.addr_indx();
+                self.op_lda(addr, 6);
+            }
+            0xA2 => {
+                let addr = self.fetch_op();
+                self.op_ldx(addr.into(), 2);
+            }
+            0xA4 => {
+                let addr = self.addr_zero();
+                self.op_ldy(addr, 3);
+            }
+            0xA5 => {
+                let addr = self.addr_zero();
+                self.op_lda(addr, 3);
+            }
+            0xA6 => {
+                let addr = self.addr_zero();
+                self.op_ldx(addr, 3);
+            }
+            0xA8 => self.op_tay(),
+            0xA9 => {
+                let addr = self.fetch_op();
+                self.op_lda(addr.into(), 2);
+            }
+            0xAA => self.op_tax(),
+            0xAC => {
+                let addr = self.addr_abs();
+                self.op_ldy(addr, 4);
+            }
+            0xAD => {
+                let addr = self.addr_abs();
+                self.op_lda(addr, 4);
+            }
+            0xAE => {
+                let addr = self.addr_abs();
+                self.op_ldx(addr, 4);
+            }
+            0xB0 => {
+                let offset = self.fetch_op() as i8;
+                self.op_bcs(offset);
+            }
+            0xB1 => {
+                let addr = self.addr_indy();
+                self.op_lda(addr, 5);
+            }
+            0xB4 => {
+                let addr = self.addr_zerox();
+                self.op_ldy(addr, 4);
+            }
+            0xB5 => {
+                let addr = self.addr_zerox();
+                self.op_lda(addr, 4);
+            }
+            0xB6 => {
+                let addr = self.addr_zeroy();
+                self.op_ldx(addr, 4);
+            }
+            0xB8 => self.op_clv(),
+            0xB9 => {
+                let addr = self.addr_absy();
+                self.op_lda(addr, 4);
+            }
+            0xBA => self.op_tsx(),
+            0xBC => {
+                let addr = self.addr_absx();
+                self.op_ldy(addr, 4);
+            }
+            0xBD => {
+                let addr = self.addr_absx();
+                self.op_lda(addr, 4);
+            }
+            0xBE => {
+                let addr = self.addr_absy();
+                self.op_ldx(addr, 4);
+            }
+            0xC0 => {
+                let addr = self.fetch_op();
+                self.op_cpy(addr.into(), 2);
+            }
+            0xC1 => {
+                let addr = self.addr_indx();
+                self.op_cmp(addr, 6);
+            }
+            0xC4 => {
+                let addr = self.addr_zero();
+                self.op_cpy(addr, 3);
+            }
+            0xC5 => {
+                let addr = self.addr_zero();
+                self.op_cmp(addr, 3);
+            }
+            0xC6 => {
+                let addr = self.addr_zero();
+                self.op_dec(addr, 5);
+            }
+            0xC8 => self.op_iny(),
+            0xC9 => {
+                let addr = self.fetch_op();
+                self.op_cmp(addr.into(), 2);
+            }
+            0xCA => self.op_dex(),
+            0xCC => {
+                let addr = self.addr_abs();
+                self.op_cpy(addr, 4);
+            }
+            0xCD => {
+                let addr = self.addr_abs();
+                self.op_cmp(addr, 4);
+            }
+            0xCE => {
+                let addr = self.addr_abs();
+                self.op_dec(addr, 6);
+            }
+            0xD0 => {
+                let offset = self.fetch_op() as i8;
+                self.op_bne(offset);
+            }
+            0xD1 => {
+                let addr = self.addr_indy();
+                self.op_cmp(addr, 5);
+            }
+            0xD5 => {
+                let addr = self.addr_zerox();
+                self.op_cmp(addr, 4);
+            }
+            0xD6 => {
+                let addr = self.addr_zerox();
+                self.op_dec(addr, 6);
+            }
+            0xD8 => self.op_cld(),
+            0xD9 => {
+                let addr = self.addr_absy();
+                self.op_cmp(addr, 4);
+            }
+            0xDD => {
+                let addr = self.addr_absx();
+                self.op_cmp(addr, 4);
+            }
+            0xDE => {
+                let addr = self.addr_absx();
+                self.op_dec(addr, 7);
+            }
+            0xE0 => {
+                let addr = self.fetch_op();
+                self.op_cpx(addr.into(), 2);
+            }
+            0xE1 => {
+                let addr = self.addr_indx();
+                self.op_sbc(addr, 6);
+            }
+            0xE4 => {
+                let addr = self.addr_zero();
+                self.op_cpx(addr, 3);
+            }
+            0xE5 => {
+                let addr = self.addr_zero();
+                self.op_sbc(addr, 3);
+            }
+            0xE6 => {
+                let addr = self.addr_zero();
+                self.op_inc(addr, 5);
+            }
+            0xE8 => self.op_inx(),
+            0xE9 => {
+                let addr = self.fetch_op();
+                self.op_sbc(addr.into(), 2);
+            }
+            0xEA => self.op_nop(),
+            0xEC => {
+                let addr = self.addr_abs();
+                self.op_cpx(addr, 4);
+            }
+            0xED => {
+                let addr = self.addr_abs();
+                self.op_sbc(addr, 4);
+            }
+            0xEE => {
+                let addr = self.addr_abs();
+                self.op_inc(addr, 6);
+            }
+            0xF0 => {
+                let offset = self.fetch_op() as i8;
+                self.op_beq(offset);
+            }
+            0xF1 => {
+                let addr = self.addr_indy();
+                self.op_sbc(addr, 5);
+            }
+            0xF5 => {
+                let addr = self.addr_zerox();
+                self.op_sbc(addr, 4);
+            }
+            0xF6 => {
+                let addr = self.addr_zerox();
+                self.op_inc(addr, 6);
+            }
+            0xF8 => self.op_sed(),
+            0xF9 => {
+                let addr = self.addr_absy();
+                self.op_sbc(addr, 4);
+            }
+            0xFD => {
+                let addr = self.addr_absx();
+                self.op_sbc(addr, 4);
+            }
+            0xFE => {
+                let addr = self.addr_absx();
+                self.op_inc(addr, 7);
+            }
             _ => panic!("Unknown opcode: {:02X}", opcode),
         }
     }
@@ -160,7 +653,7 @@ impl<'a> Cpu<'a> {
 
     // ---- Math Instructions ----
     // ADC: Add with Carry
-    fn op_adc(&mut self, addr: u16) {
+    fn op_adc(&mut self, addr: u16, cycles: u32) {
         let value = self.memory.read_byte(addr);
         let temp = self.a as u16 + value as u16 + if self.carry { 1 } else { 0 };
 
@@ -169,10 +662,11 @@ impl<'a> Cpu<'a> {
 
         self.a = temp as u8;
         self.update_zero_negative_flags(self.a);
+        self.tick(cycles);
     }
 
     // SBC: Subtract with Carry
-    fn op_sbc(&mut self, addr: u16) {
+    fn op_sbc(&mut self, addr: u16, cycles: u32) {
         let value = self.memory.read_byte(addr);
         let temp = self.a as i16 - value as i16 - if self.carry { 0 } else { 1 };
 
@@ -181,56 +675,53 @@ impl<'a> Cpu<'a> {
 
         self.a = temp as u8;
         self.update_zero_negative_flags(self.a);
+        self.tick(cycles);
     }
 
     // ---- Memory Instructions ----
     // LDA: Load Accumulator
-    fn op_lda(&mut self, addr: u16) {
+    fn op_lda(&mut self, addr: u16, cycles: u32) {
         self.a = self.memory.read_byte(addr);
         self.update_zero_negative_flags(self.a);
+        self.tick(cycles);
     }
 
     // LDX: Load X Register
-    fn op_ldx(&mut self, addr: u16) {
+    fn op_ldx(&mut self, addr: u16, cycles: u32) {
         self.x = self.memory.read_byte(addr);
         self.update_zero_negative_flags(self.x);
+        self.tick(cycles);
     }
 
     // LDY: Load Y Register
-    fn op_ldy(&mut self, addr: u16) {
+    fn op_ldy(&mut self, addr: u16, cycles: u32) {
         self.y = self.memory.read_byte(addr);
         self.update_zero_negative_flags(self.y);
+        self.tick(cycles);
     }
 
     // STA: Store Accumulator
-    fn op_sta(&mut self, addr: u16) {
+    fn op_sta(&mut self, addr: u16, cycles: u32) {
         self.memory.write_byte(addr, self.a);
-    }
-
-    // STX: Store X Register
-    fn op_stx(&mut self, addr: u16) {
-        self.memory.write_byte(addr, self.x);
-    }
-
-    // STY: Store Y Register
-    fn op_sty(&mut self, addr: u16) {
-        self.memory.write_byte(addr, self.y);
+        self.tick(cycles);
     }
 
     // INC: Increment Memory
-    fn op_inc(&mut self, addr: u16) {
+    fn op_inc(&mut self, addr: u16, cycles: u32) {
         let mut value = self.memory.read_byte(addr);
         value = value.wrapping_add(1);
         self.memory.write_byte(addr, value);
         self.update_zero_negative_flags(value);
+        self.tick(cycles);
     }
 
     // DEC: Decrement Memory
-    fn op_dec(&mut self, addr: u16) {
+    fn op_dec(&mut self, addr: u16, cycles: u32) {
         let mut value = self.memory.read_byte(addr);
         value = value.wrapping_sub(1);
         self.memory.write_byte(addr, value);
         self.update_zero_negative_flags(value);
+        self.tick(cycles);
     }
 
     // ---- Branching Instructions ----
@@ -239,6 +730,7 @@ impl<'a> Cpu<'a> {
         if self.zero {
             self.branch(offset);
         }
+        self.tick(2);
     }
 
     // BNE: Branch if Not Equal (Zero flag is clear)
@@ -263,17 +755,20 @@ impl<'a> Cpu<'a> {
     }
 
     // BMI: Branch if Minus (Negative flag is set)
-    fn op_bmi(&mut self, offset: i8) {
+    fn op_bmi(&mut self) {
+        let offset = self.fetch_op() + self.pc as u8;
         if self.negative {
-            self.branch(offset);
+            self.branch(offset as i8);
         }
     }
 
     // BPL: Branch if Positive (Negative flag is clear)
-    fn op_bpl(&mut self, offset: i8) {
+    fn op_bpl(&mut self) {
+        let offset = self.fetch_op() + self.pc as u8;
         if !self.negative {
-            self.branch(offset);
+            self.branch(offset as i8);
         }
+        self.tick(2);
     }
 
     // BVS: Branch if Overflow Set
@@ -297,9 +792,10 @@ impl<'a> Cpu<'a> {
 
     // ---- Bitwise Instructions ----
     // AND: Logical AND
-    fn op_and(&mut self, addr: u16) {
+    fn op_and(&mut self, addr: u16, cycles: u32) {
         self.a &= self.memory.read_byte(addr);
         self.update_zero_negative_flags(self.a);
+        self.tick(cycles);
     }
 
     // ORA: Logical OR
@@ -310,9 +806,10 @@ impl<'a> Cpu<'a> {
     }
 
     // EOR: Exclusive OR
-    fn op_eor(&mut self, addr: u16) {
+    fn op_eor(&mut self, addr: u16, cycles: u32) {
         self.a ^= self.memory.read_byte(addr);
         self.update_zero_negative_flags(self.a);
+        self.tick(cycles);
     }
 
     // ASL: Arithmetic Shift Left
@@ -325,17 +822,32 @@ impl<'a> Cpu<'a> {
         self.tick(cycles);
     }
 
+    fn op_asl_a(&mut self) {
+        self.carry = (self.a & 0x80) != 0;
+        self.a <<= 1;
+        self.update_zero_negative_flags(self.a);
+        self.tick(2);
+    }
+
     // LSR: Logical Shift Right
-    fn op_lsr(&mut self, addr: u16) {
+    fn op_lsr(&mut self, addr: u16, cycles: u32) {
         let mut value = self.memory.read_byte(addr);
         self.carry = (value & 0x01) != 0;
         value >>= 1;
         self.memory.write_byte(addr, value);
         self.update_zero_negative_flags(value);
+        self.tick(cycles);
+    }
+
+    fn op_lsr_a(&mut self) {
+        self.carry = (self.a & 0x01) != 0;
+        self.a >>= 1;
+        self.update_zero_negative_flags(self.a);
+        self.tick(2);
     }
 
     // ROL: Rotate Left
-    fn op_rol(&mut self, addr: u16) {
+    fn op_rol(&mut self, addr: u16, cycles: u32) {
         let mut value = self.memory.read_byte(addr);
         let new_carry = (value & 0x80) != 0;
         value <<= 1;
@@ -345,10 +857,22 @@ impl<'a> Cpu<'a> {
         self.memory.write_byte(addr, value);
         self.carry = new_carry;
         self.update_zero_negative_flags(value);
+        self.tick(cycles);
+    }
+
+    fn op_rol_a(&mut self) {
+        let new_carry = (self.a & 0x80) != 0;
+        self.a <<= 1;
+        if self.carry {
+            self.a |= 0x01;
+        }
+        self.carry = new_carry;
+        self.update_zero_negative_flags(self.a);
+        self.tick(2);
     }
 
     // ROR: Rotate Right
-    fn op_ror(&mut self, addr: u16) {
+    fn op_ror(&mut self, addr: u16, cycles: u32) {
         let mut value = self.memory.read_byte(addr);
         let new_carry = (value & 0x01) != 0;
         value >>= 1;
@@ -358,6 +882,18 @@ impl<'a> Cpu<'a> {
         self.memory.write_byte(addr, value);
         self.carry = new_carry;
         self.update_zero_negative_flags(value);
+        self.tick(cycles);
+    }
+
+    fn op_ror_a(&mut self) {
+        let new_carry = (self.a & 0x01) != 0;
+        self.a >>= 1;
+        if self.carry {
+            self.a |= 0x80;
+        }
+        self.carry = new_carry;
+        self.update_zero_negative_flags(self.a);
+        self.tick(2);
     }
 
     // ---- Stack Instructions ----
@@ -387,6 +923,29 @@ impl<'a> Cpu<'a> {
         self.sp = self.sp.wrapping_add(1);
         let status = self.memory.read_byte(0x0100 + self.sp as u16);
         self.flags_from_status(status);
+    }
+
+    // STX: Store X Register
+    fn op_stx(&mut self, addr: u16, cycles: u32) {
+        self.memory.write_byte(addr, self.x);
+        self.tick(cycles);
+    }
+
+    // STY: Store Y Register
+    fn op_sty(&mut self, addr: u16, cycles: u32) {
+        self.memory.write_byte(addr, self.y);
+        self.tick(cycles);
+    }
+
+    // TXS: Transfer X to Stack Pointer
+    fn op_txs(&mut self) {
+        self.sp = self.x;
+    }
+
+    // TSX: Transfer Stack Pointer to X
+    fn op_tsx(&mut self) {
+        self.x = self.sp;
+        self.update_zero_negative_flags(self.x);
     }
 
     // Helper functions to convert between status flags and a single byte
@@ -428,13 +987,63 @@ impl<'a> Cpu<'a> {
         self.negative = (status & (1 << 7)) != 0;
     }
 
-    // TODO:
-    // - TSX: Transfer Stack Pointer to X Register
-    // - TXS: Transfer X Register to Stack Pointer
+    // -- Register Instructions --
+    fn op_tax(&mut self) {
+        self.x = self.a;
+        self.update_zero_negative_flags(self.x);
+    }
+
+    fn op_tay(&mut self) {
+        self.y = self.a;
+        self.update_zero_negative_flags(self.y);
+    }
+
+    fn op_txa(&mut self) {
+        self.a = self.x;
+        self.update_zero_negative_flags(self.a);
+    }
+
+    fn op_tya(&mut self) {
+        self.a = self.y;
+        self.update_zero_negative_flags(self.a);
+    }
+
+    fn op_dex(&mut self) {
+        self.x = self.x.wrapping_sub(1);
+        self.update_zero_negative_flags(self.x);
+    }
+
+    fn op_dey(&mut self) {
+        self.y = self.y.wrapping_sub(1);
+        self.update_zero_negative_flags(self.y);
+    }
+
+    fn op_inx(&mut self) {
+        self.x = self.x.wrapping_add(1);
+        self.update_zero_negative_flags(self.x);
+    }
+
+    fn op_iny(&mut self) {
+        self.y = self.y.wrapping_add(1);
+        self.update_zero_negative_flags(self.y);
+    }
 
     // ---- Jump Instructions ----
     // JMP: Jump to Address
     fn op_jmp(&mut self, addr: u16) {
+        self.pc = addr;
+    }
+
+    fn op_jmp_indirect(&mut self, addr: u16) {
+        let lo = self.memory.read_byte(addr);
+        let hi = self.memory.read_byte(addr + 1);
+        let addr = (hi as u16) << 8 | lo as u16;
+
+        // JMP bug
+        let lo = self.memory.read_byte(addr);
+        let hi = self.memory.read_byte(addr & 0xFF00 | ((addr + 1) & 0x00FF));
+        let addr = (hi as u16) << 8 | lo as u16;
+
         self.pc = addr;
     }
 
@@ -448,6 +1057,13 @@ impl<'a> Cpu<'a> {
     // RTS: Return from Subroutine
     fn op_rts(&mut self) {
         self.pc = self.pull_word().wrapping_add(1);
+    }
+
+    // RTI: Return from Interrupt
+    fn op_rti(&mut self) {
+        self.op_plp();
+        self.pc = self.pull_word();
+        self.tick(7);
     }
 
     // Helper functions for stack operations
@@ -468,42 +1084,43 @@ impl<'a> Cpu<'a> {
         (hi << 8) | lo
     }
 
-    // TODO:
-    // - RTI: Return from Interrupt
-
     // ---- Compare Instructions ----
     // CMP: Compare Accumulator
-    fn op_cmp(&mut self, addr: u16) {
+    fn op_cmp(&mut self, addr: u16, cycles: u32) {
         let value = self.memory.read_byte(addr);
         let result = self.a.wrapping_sub(value);
         self.update_zero_negative_flags(result);
         self.carry = self.a >= value;
+        self.tick(cycles);
     }
 
     // CPX: Compare X Register
-    fn op_cpx(&mut self, addr: u16) {
+    fn op_cpx(&mut self, addr: u16, cycles: u32) {
         let value = self.memory.read_byte(addr);
         let result = self.x.wrapping_sub(value);
         self.update_zero_negative_flags(result);
         self.carry = self.x >= value;
+        self.tick(cycles);
     }
 
     // CPY: Compare Y Register
-    fn op_cpy(&mut self, addr: u16) {
+    fn op_cpy(&mut self, addr: u16, cycles: u32) {
         let value = self.memory.read_byte(addr);
         let result = self.y.wrapping_sub(value);
         self.update_zero_negative_flags(result);
         self.carry = self.y >= value;
+        self.tick(cycles);
     }
 
     // BIT: Bit Test
-    fn op_bit(&mut self, addr: u16) {
+    fn op_bit(&mut self, addr: u16, cycles: u32) {
         let value = self.memory.read_byte(addr);
         let result = self.a & value;
 
         self.zero = result == 0;
         self.overflow = (value & 0x40) != 0;
         self.negative = (value & 0x80) != 0;
+        self.tick(cycles);
     }
 
     // ---- Flag Instructions ----
