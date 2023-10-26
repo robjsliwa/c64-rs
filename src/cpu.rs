@@ -137,7 +137,8 @@ impl<'a> Cpu<'a> {
             }
             0x25 => {
                 let addr = self.addr_zero();
-                self.op_and(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_and(value, 3);
             }
             0x26 => {
                 let addr = self.addr_zero();
@@ -155,7 +156,8 @@ impl<'a> Cpu<'a> {
             }
             0x2D => {
                 let addr = self.addr_abs();
-                self.op_and(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_and(value, 4);
             }
             0x2E => {
                 let addr = self.addr_abs();
@@ -164,11 +166,13 @@ impl<'a> Cpu<'a> {
             0x30 => self.op_bmi(),
             0x31 => {
                 let addr = self.addr_indy();
-                self.op_and(addr, 5);
+                let value = self.load_byte(addr);
+                self.op_and(value, 5);
             }
             0x35 => {
                 let addr = self.addr_zeroy();
-                self.op_and(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_and(value, 4);
             }
             0x36 => {
                 let addr = self.addr_zeroy();
@@ -177,11 +181,13 @@ impl<'a> Cpu<'a> {
             0x38 => self.op_sec(),
             0x39 => {
                 let addr = self.addr_absy();
-                self.op_and(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_and(value, 4);
             }
             0x3D => {
                 let addr = self.addr_absx();
-                self.op_and(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_and(value, 4);
             }
             0x3E => {
                 let addr = self.addr_absx();
@@ -190,11 +196,13 @@ impl<'a> Cpu<'a> {
             0x40 => self.op_rti(),
             0x41 => {
                 let addr = self.addr_indx();
-                self.op_eor(addr, 6);
+                let value = self.load_byte(addr);
+                self.op_eor(value, 6);
             }
             0x45 => {
                 let addr = self.addr_zero();
-                self.op_eor(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_eor(value, 3);
             }
             0x46 => {
                 let addr = self.addr_zero();
@@ -212,7 +220,8 @@ impl<'a> Cpu<'a> {
             }
             0x4D => {
                 let addr = self.addr_abs();
-                self.op_eor(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_eor(value, 4);
             }
             0x4E => {
                 let addr = self.addr_abs();
@@ -224,11 +233,13 @@ impl<'a> Cpu<'a> {
             }
             0x51 => {
                 let addr = self.addr_indy();
-                self.op_eor(addr, 5);
+                let value = self.load_byte(addr);
+                self.op_eor(value, 5);
             }
             0x55 => {
                 let addr = self.addr_zerox();
-                self.op_eor(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_eor(value, 4);
             }
             0x56 => {
                 let addr = self.addr_zerox();
@@ -237,11 +248,13 @@ impl<'a> Cpu<'a> {
             0x58 => self.op_cli(),
             0x59 => {
                 let addr = self.addr_absy();
-                self.op_eor(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_eor(value, 4);
             }
             0x5D => {
                 let addr = self.addr_absx();
-                self.op_eor(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_eor(value, 4);
             }
             0x5E => {
                 let addr = self.addr_absx();
@@ -777,6 +790,7 @@ impl<'a> Cpu<'a> {
         if self.negative {
             self.branch(offset as i8);
         }
+        self.tick(2);
     }
 
     // BPL: Branch if Positive (Negative flag is clear)
@@ -823,8 +837,8 @@ impl<'a> Cpu<'a> {
     }
 
     // EOR: Exclusive OR
-    fn op_eor(&mut self, addr: u16, cycles: u32) {
-        self.a ^= self.memory.read_byte(addr);
+    fn op_eor(&mut self, value: u8, cycles: u32) {
+        self.a ^= value;
         self.update_zero_negative_flags(self.a);
         self.tick(cycles);
     }
@@ -918,6 +932,7 @@ impl<'a> Cpu<'a> {
     fn op_pha(&mut self) {
         self.memory.write_byte(0x0100 + self.sp as u16, self.a);
         self.sp = self.sp.wrapping_sub(1);
+        self.tick(3);
     }
 
     // PHP: Push Processor Status onto Stack
@@ -940,6 +955,7 @@ impl<'a> Cpu<'a> {
         self.sp = self.sp.wrapping_add(1);
         let status = self.memory.read_byte(0x0100 + self.sp as u16);
         self.flags_from_status(status);
+        self.tick(4);
     }
 
     // STX: Store X Register
@@ -1149,11 +1165,13 @@ impl<'a> Cpu<'a> {
     // SEC: Set Carry Flag
     fn op_sec(&mut self) {
         self.carry = true;
+        self.tick(2);
     }
 
     // CLI: Clear Interrupt Disable Flag
     fn op_cli(&mut self) {
         self.interrupt_disable = false;
+        self.tick(2);
     }
 
     // SEI: Set Interrupt Disable Flag
