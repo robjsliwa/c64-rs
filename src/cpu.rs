@@ -633,6 +633,22 @@ impl<'a> Cpu<'a> {
     }
 
     // ---- Helper Functions ----
+    pub fn irq(&mut self) {
+        // Push the current program counter onto the stack
+        self.push_word(self.pc);
+
+        // Push the processor status onto the stack
+        self.push_byte(self.status());
+
+        // Set the IRQ disable flag
+        self.set_flag(Flags::IrqDisable, true);
+
+        // Load the program counter with the address from the IRQ vector
+        let lo = self.memory.read_byte(0xFFFE) as u16;
+        let hi = self.memory.read_byte(0xFFFF) as u16;
+        self.pc = (hi << 8) | lo;
+    }
+
     pub fn load_byte(&self, addr: u16) -> u8 {
         self.memory.read_byte(addr)
     }

@@ -1,6 +1,7 @@
 use crate::cpu::Cpu;
 use crate::memory::Memory;
 
+mod cia1;
 mod cpu;
 mod memory;
 
