@@ -214,10 +214,7 @@ impl<'a> Cpu<'a> {
                 self.op_eor(addr, 2);
             }
             0x4A => self.op_lsr_a(),
-            0x4C => {
-                let addr = self.addr_abs();
-                self.op_jmp(addr);
-            }
+            0x4C => self.op_jmp(),
             0x4D => {
                 let addr = self.addr_abs();
                 let value = self.load_byte(addr);
@@ -390,7 +387,8 @@ impl<'a> Cpu<'a> {
             }
             0xA1 => {
                 let addr = self.addr_indx();
-                self.op_lda(addr, 6);
+                let value = self.load_byte(addr);
+                self.op_lda(value, 6);
             }
             0xA2 => {
                 let addr = self.fetch_op();
@@ -398,11 +396,13 @@ impl<'a> Cpu<'a> {
             }
             0xA4 => {
                 let addr = self.addr_zero();
-                self.op_ldy(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_ldy(value, 3);
             }
             0xA5 => {
                 let addr = self.addr_zero();
-                self.op_lda(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_lda(value, 3);
             }
             0xA6 => {
                 let addr = self.addr_zero();
@@ -417,11 +417,13 @@ impl<'a> Cpu<'a> {
             0xAA => self.op_tax(),
             0xAC => {
                 let addr = self.addr_abs();
-                self.op_ldy(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_ldy(value, 4);
             }
             0xAD => {
                 let addr = self.addr_abs();
-                self.op_lda(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_lda(value, 4);
             }
             0xAE => {
                 let addr = self.addr_abs();
@@ -434,34 +436,40 @@ impl<'a> Cpu<'a> {
             }
             0xB1 => {
                 let addr = self.addr_indy();
-                self.op_lda(addr, 5);
+                let value = self.load_byte(addr);
+                self.op_lda(value, 5);
             }
             0xB4 => {
                 let addr = self.addr_zerox();
-                self.op_ldy(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_ldy(value, 3);
             }
             0xB5 => {
                 let addr = self.addr_zerox();
-                self.op_lda(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_lda(value, 3);
             }
             0xB6 => {
                 let addr = self.addr_zeroy();
                 let value = self.load_byte(addr);
-                self.op_ldx(value, 4);
+                self.op_ldx(value, 3);
             }
             0xB8 => self.op_clv(),
             0xB9 => {
                 let addr = self.addr_absy();
-                self.op_lda(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_lda(value, 4);
             }
             0xBA => self.op_tsx(),
             0xBC => {
                 let addr = self.addr_absx();
-                self.op_ldy(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_ldy(value, 4);
             }
             0xBD => {
                 let addr = self.addr_absx();
-                self.op_lda(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_lda(value, 4);
             }
             0xBE => {
                 let addr = self.addr_absy();
@@ -470,19 +478,22 @@ impl<'a> Cpu<'a> {
             }
             0xC0 => {
                 let addr = self.fetch_op();
-                self.op_cpy(addr.into(), 2);
+                self.op_cpy(addr, 2);
             }
             0xC1 => {
                 let addr = self.addr_indx();
-                self.op_cmp(addr, 6);
+                let value = self.load_byte(addr);
+                self.op_cmp(value, 6);
             }
             0xC4 => {
                 let addr = self.addr_zero();
-                self.op_cpy(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_cpy(value, 3);
             }
             0xC5 => {
                 let addr = self.addr_zero();
-                self.op_cmp(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_cmp(value, 3);
             }
             0xC6 => {
                 let addr = self.addr_zero();
@@ -491,16 +502,18 @@ impl<'a> Cpu<'a> {
             0xC8 => self.op_iny(),
             0xC9 => {
                 let addr = self.fetch_op();
-                self.op_cmp(addr.into(), 2);
+                self.op_cmp(addr, 2);
             }
             0xCA => self.op_dex(),
             0xCC => {
                 let addr = self.addr_abs();
-                self.op_cpy(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_cpy(value, 4);
             }
             0xCD => {
                 let addr = self.addr_abs();
-                self.op_cmp(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_cmp(value, 4);
             }
             0xCE => {
                 let addr = self.addr_abs();
@@ -512,11 +525,13 @@ impl<'a> Cpu<'a> {
             }
             0xD1 => {
                 let addr = self.addr_indy();
-                self.op_cmp(addr, 5);
+                let value = self.load_byte(addr);
+                self.op_cmp(value, 5);
             }
             0xD5 => {
                 let addr = self.addr_zerox();
-                self.op_cmp(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_cmp(value, 4);
             }
             0xD6 => {
                 let addr = self.addr_zerox();
@@ -525,11 +540,13 @@ impl<'a> Cpu<'a> {
             0xD8 => self.op_cld(),
             0xD9 => {
                 let addr = self.addr_absy();
-                self.op_cmp(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_cmp(value, 4);
             }
             0xDD => {
                 let addr = self.addr_absx();
-                self.op_cmp(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_cmp(value, 4);
             }
             0xDE => {
                 let addr = self.addr_absx();
@@ -541,15 +558,18 @@ impl<'a> Cpu<'a> {
             }
             0xE1 => {
                 let addr = self.addr_indx();
-                self.op_sbc(addr, 6);
+                let value = self.load_byte(addr);
+                self.op_sbc(value, 6);
             }
             0xE4 => {
                 let addr = self.addr_zero();
-                self.op_cpx(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_cpx(value, 3);
             }
             0xE5 => {
                 let addr = self.addr_zero();
-                self.op_sbc(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_sbc(value, 3);
             }
             0xE6 => {
                 let addr = self.addr_zero();
@@ -558,16 +578,18 @@ impl<'a> Cpu<'a> {
             0xE8 => self.op_inx(),
             0xE9 => {
                 let addr = self.fetch_op();
-                self.op_sbc(addr.into(), 2);
+                self.op_sbc(addr, 2);
             }
             0xEA => self.op_nop(),
             0xEC => {
                 let addr = self.addr_abs();
-                self.op_cpx(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_cpx(value, 4);
             }
             0xED => {
                 let addr = self.addr_abs();
-                self.op_sbc(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_sbc(value, 4);
             }
             0xEE => {
                 let addr = self.addr_abs();
@@ -579,11 +601,13 @@ impl<'a> Cpu<'a> {
             }
             0xF1 => {
                 let addr = self.addr_indy();
-                self.op_sbc(addr, 5);
+                let value = self.load_byte(addr);
+                self.op_sbc(value, 5);
             }
             0xF5 => {
                 let addr = self.addr_zerox();
-                self.op_sbc(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_sbc(value, 4);
             }
             0xF6 => {
                 let addr = self.addr_zerox();
@@ -592,11 +616,13 @@ impl<'a> Cpu<'a> {
             0xF8 => self.op_sed(),
             0xF9 => {
                 let addr = self.addr_absy();
-                self.op_sbc(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_sbc(value, 4);
             }
             0xFD => {
                 let addr = self.addr_absx();
-                self.op_sbc(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_sbc(value, 4);
             }
             0xFE => {
                 let addr = self.addr_absx();
@@ -714,8 +740,7 @@ impl<'a> Cpu<'a> {
     }
 
     // SBC: Subtract with Carry
-    fn op_sbc(&mut self, addr: u16, cycles: u32) {
-        let value = self.memory.read_byte(addr);
+    fn op_sbc(&mut self, value: u8, cycles: u32) {
         let temp = self.a as i16 - value as i16 - if self.carry { 0 } else { 1 };
 
         self.overflow = ((self.a ^ temp as u8) & (self.a ^ value) & 0x80) != 0;
@@ -786,6 +811,7 @@ impl<'a> Cpu<'a> {
         if !self.zero {
             self.branch(offset);
         }
+        self.tick(2);
     }
 
     // BCS: Branch if Carry Set
@@ -793,6 +819,7 @@ impl<'a> Cpu<'a> {
         if self.carry {
             self.branch(offset);
         }
+        self.tick(2);
     }
 
     // BCC: Branch if Carry Clear
@@ -1083,11 +1110,13 @@ impl<'a> Cpu<'a> {
     fn op_inx(&mut self) {
         self.x = self.x.wrapping_add(1);
         self.update_zero_negative_flags(self.x);
+        self.tick(2);
     }
 
     fn op_iny(&mut self) {
         self.y = self.y.wrapping_add(1);
         self.update_zero_negative_flags(self.y);
+        self.tick(2);
     }
 
     // ---- Jump Instructions ----
@@ -1099,8 +1128,9 @@ impl<'a> Cpu<'a> {
     }
 
     fn op_jmp_ind(&mut self) {
-        let addr = self.read_word(self.addr_abs());
-        self.pc = addr;
+        let addr = self.addr_abs();
+        let value = self.read_word(addr);
+        self.pc = value;
         self.tick(3);
     }
 
@@ -1144,8 +1174,7 @@ impl<'a> Cpu<'a> {
 
     // ---- Compare Instructions ----
     // CMP: Compare Accumulator
-    fn op_cmp(&mut self, addr: u16, cycles: u32) {
-        let value = self.memory.read_byte(addr);
+    fn op_cmp(&mut self, value: u8, cycles: u32) {
         let result = self.a.wrapping_sub(value);
         self.update_zero_negative_flags(result);
         self.carry = self.a >= value;
@@ -1153,8 +1182,7 @@ impl<'a> Cpu<'a> {
     }
 
     // CPX: Compare X Register
-    fn op_cpx(&mut self, addr: u16, cycles: u32) {
-        let value = self.memory.read_byte(addr);
+    fn op_cpx(&mut self, value: u8, cycles: u32) {
         let result = self.x.wrapping_sub(value);
         self.update_zero_negative_flags(result);
         self.carry = self.x >= value;
@@ -1162,8 +1190,7 @@ impl<'a> Cpu<'a> {
     }
 
     // CPY: Compare Y Register
-    fn op_cpy(&mut self, addr: u16, cycles: u32) {
-        let value = self.memory.read_byte(addr);
+    fn op_cpy(&mut self, value: u8, cycles: u32) {
         let result = self.y.wrapping_sub(value);
         self.update_zero_negative_flags(result);
         self.carry = self.y >= value;
