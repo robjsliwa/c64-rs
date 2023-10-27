@@ -2,8 +2,8 @@ use super::cpu::Cpu;
 
 pub struct Cia1<'a> {
     cpu: &'a mut Cpu<'a>,
-    timer_a_latch: i16,
-    timer_b_latch: i16,
+    timer_a_latch: u16,
+    timer_b_latch: u16,
     timer_a_counter: i16,
     timer_b_counter: i16,
     timer_a_enabled: bool,
@@ -22,7 +22,7 @@ pub struct Cia1<'a> {
 }
 
 impl<'a> Cia1<'a> {
-    pub fn new(cpu: &'a mut Cpu) -> Self {
+    pub fn new(cpu: &'a mut Cpu<'a>) -> Self {
         Cia1 {
             cpu,
             timer_a_latch: 0,
@@ -60,22 +60,62 @@ impl<'a> Cia1<'a> {
             // timer a low byte
             0x4 => {
                 self.timer_a_latch &= 0xff00;
-                self.timer_a_latch |= v as i16;
+                self.timer_a_latch |= v as u16;
             }
             // timer a high byte
             0x5 => {
                 self.timer_a_latch &= 0x00ff;
-                self.timer_a_latch |= (v as i16) << 8;
+                self.timer_a_latch |= (v as u16) << 8;
             }
             // timer b low byte
             0x6 => {
                 self.timer_b_latch &= 0xff00;
-                self.timer_b_latch |= v as i16;
+                self.timer_b_latch |= v as u16;
             }
             // timer b high byte
             0x7 => {
                 self.timer_b_latch &= 0x00ff;
-                self.timer_b_latch |= (v as i16) << 8;
+                self.timer_b_latch |= (v as u16) << 8;
+            }
+            // RTC 1/10s
+            0x8 => {}
+            /* RTC seconds */
+            0x9 => {}
+            /* RTC minutes */
+            0xa => {}
+            /* RTC hours */
+            0xb => {}
+            /* shift serial */
+            0xc => {}
+            /* interrupt control and status */
+            0xd => {
+                // if bit 7 is set, enable selected mask of
+                // interrupts, else disable them
+                if (v & (1 << 7)) != 0 {
+                    self.timer_a_irq_enabled = (v & (1 << 0)) != 0;
+                    self.timer_b_irq_enabled = (v & (1 << 1)) != 0;
+                } else {
+                    self.timer_a_irq_enabled = false;
+                    self.timer_b_irq_enabled = false;
+                }
+            }
+            // control timer a
+            0xe => {
+                self.timer_a_enabled = (v & 0x1) != 0;
+                self.timer_a_input_mode = InputMode::from((v & (1 << 5)) >> 5);
+                // load latch requested
+                if (v & (1 << 4)) != 0 {
+                    self.timer_a_counter = self.timer_a_latch as i16;
+                }
+            }
+            // control timer b
+            0xf => {
+                self.timer_b_enabled = (v & 0x1) != 0;
+                self.timer_b_input_mode = InputMode::from((v & (1 << 5)) >> 5);
+                // load latch requested
+                if (v & (1 << 4)) != 0 {
+                    self.timer_b_counter = self.timer_b_latch as i16;
+                }
             }
             _ => {}
         }
@@ -110,7 +150,7 @@ impl<'a> Cia1<'a> {
     pub fn reset_timer_a(&mut self) {
         match self.timer_a_run_mode {
             RunMode::Restart => {
-                self.timer_a_counter = self.timer_a_latch;
+                self.timer_a_counter = self.timer_a_latch as i16;
             }
             RunMode::OneTime => {
                 self.timer_a_enabled = false;
@@ -121,7 +161,7 @@ impl<'a> Cia1<'a> {
     pub fn reset_timer_b(&mut self) {
         match self.timer_b_run_mode {
             RunMode::Restart => {
-                self.timer_b_counter = self.timer_b_latch;
+                self.timer_b_counter = self.timer_b_latch as i16;
             }
             RunMode::OneTime => {
                 self.timer_b_enabled = false;
@@ -142,7 +182,9 @@ impl<'a> Cia1<'a> {
                         self.reset_timer_a();
                     }
                 }
-                _ => {}
+                InputMode::CNT => {}
+                InputMode::TimerA => {}
+                InputMode::TimerACNT => {}
             }
         }
         if self.timer_b_enabled {
@@ -157,7 +199,9 @@ impl<'a> Cia1<'a> {
                         self.reset_timer_b();
                     }
                 }
-                _ => {}
+                InputMode::CNT => {}
+                InputMode::TimerA => {}
+                InputMode::TimerACNT => {}
             }
         }
         self.prev_cpu_cycles = self.cpu.cycles();
@@ -172,6 +216,18 @@ enum InputMode {
     CNT,
     TimerA,
     TimerACNT,
+}
+
+impl From<u8> for InputMode {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => InputMode::Processor,
+            1 => InputMode::CNT,
+            2 => InputMode::TimerA,
+            3 => InputMode::TimerACNT,
+            _ => panic!("Invalid value for InputMode: {}", value),
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]
