@@ -1,9 +1,7 @@
 use super::cpu::Cpu;
-use super::memory::Memory;
 
-pub struct Cia1 {
-    cpu: Option<*mut Cpu>,
-    memory: Option<*mut Memory>,
+pub struct Cia1<'a> {
+    cpu: &'a mut Cpu<'a>,
     timer_a_latch: i16,
     timer_b_latch: i16,
     timer_a_counter: i16,
@@ -23,11 +21,10 @@ pub struct Cia1 {
     prb: u8,
 }
 
-impl Cia1 {
-    pub fn new() -> Self {
+impl<'a> Cia1<'a> {
+    pub fn new(cpu: &'a mut Cpu) -> Self {
         Cia1 {
-            cpu: None,
-            memory: None,
+            cpu,
             timer_a_latch: 0,
             timer_b_latch: 0,
             timer_a_counter: 0,
@@ -46,14 +43,6 @@ impl Cia1 {
             pra: 0xff,
             prb: 0xff,
         }
-    }
-
-    pub fn set_cpu(&mut self, cpu: &mut Cpu) {
-        self.cpu = Some(cpu);
-    }
-
-    pub fn set_memory(&mut self, memory: &mut Memory) {
-        self.memory = Some(memory);
     }
 
     pub fn write_register(&mut self, r: u8, v: u8) {
@@ -141,40 +130,37 @@ impl Cia1 {
     }
 
     pub fn emulate(&mut self) -> bool {
-        if let Some(cpu_ref) = self.cpu {
-            let cpu = unsafe { &mut *cpu_ref };
-            if self.timer_a_enabled {
-                match self.timer_a_input_mode {
-                    InputMode::Processor => {
-                        self.timer_a_counter -= (cpu.cycles() - self.prev_cpu_cycles) as i16;
-                        if self.timer_a_counter <= 0 {
-                            if self.timer_a_irq_enabled {
-                                self.timer_a_irq_triggered = true;
-                                cpu.irq();
-                            }
-                            self.reset_timer_a();
+        if self.timer_a_enabled {
+            match self.timer_a_input_mode {
+                InputMode::Processor => {
+                    self.timer_a_counter -= (self.cpu.cycles() - self.prev_cpu_cycles) as i16;
+                    if self.timer_a_counter <= 0 {
+                        if self.timer_a_irq_enabled {
+                            self.timer_a_irq_triggered = true;
+                            self.cpu.irq();
                         }
+                        self.reset_timer_a();
                     }
-                    _ => {}
                 }
+                _ => {}
             }
-            if self.timer_b_enabled {
-                match self.timer_b_input_mode {
-                    InputMode::Processor => {
-                        self.timer_b_counter -= (cpu.cycles() - self.prev_cpu_cycles) as i16;
-                        if self.timer_b_counter <= 0 {
-                            if self.timer_b_irq_enabled {
-                                self.timer_b_irq_triggered = true;
-                                cpu.irq();
-                            }
-                            self.reset_timer_b();
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            self.prev_cpu_cycles = cpu.cycles();
         }
+        if self.timer_b_enabled {
+            match self.timer_b_input_mode {
+                InputMode::Processor => {
+                    self.timer_b_counter -= (self.cpu.cycles() - self.prev_cpu_cycles) as i16;
+                    if self.timer_b_counter <= 0 {
+                        if self.timer_b_irq_enabled {
+                            self.timer_b_irq_triggered = true;
+                            self.cpu.irq();
+                        }
+                        self.reset_timer_b();
+                    }
+                }
+                _ => {}
+            }
+        }
+        self.prev_cpu_cycles = self.cpu.cycles();
         true
     }
 }

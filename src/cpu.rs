@@ -633,19 +633,24 @@ impl<'a> Cpu<'a> {
     }
 
     // ---- Helper Functions ----
+    pub fn cycles(&self) -> u32 {
+        self.cycles
+    }
+
     pub fn irq(&mut self) {
         // Push the current program counter onto the stack
         self.push_word(self.pc);
 
         // Push the processor status onto the stack
-        self.push_byte(self.status());
+        self.status_from_flags();
+        self.push(self.status);
 
         // Set the IRQ disable flag
-        self.set_flag(Flags::IrqDisable, true);
+        self.interrupt_disable = true;
 
         // Load the program counter with the address from the IRQ vector
-        let lo = self.memory.read_byte(0xFFFE) as u16;
-        let hi = self.memory.read_byte(0xFFFF) as u16;
+        let lo = self.memory.read_byte(Memory::ADDR_IRQ_VECTOR) as u16;
+        let hi = self.memory.read_byte(Memory::ADDR_IRQ_VECTOR + 1) as u16;
         self.pc = (hi << 8) | lo;
     }
 
