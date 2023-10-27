@@ -211,7 +211,7 @@ impl<'a> Cpu<'a> {
             0x48 => self.op_pha(),
             0x49 => {
                 let addr = self.fetch_op();
-                self.op_eor(addr.into(), 2);
+                self.op_eor(addr, 2);
             }
             0x4A => self.op_lsr_a(),
             0x4C => {
@@ -263,11 +263,13 @@ impl<'a> Cpu<'a> {
             0x60 => self.op_rts(),
             0x61 => {
                 let addr = self.addr_indx();
-                self.op_adc(addr, 6);
+                let value = self.load_byte(addr);
+                self.op_adc(value, 6);
             }
             0x65 => {
                 let addr = self.addr_zero();
-                self.op_adc(addr, 3);
+                let value = self.load_byte(addr);
+                self.op_adc(value, 3);
             }
             0x66 => {
                 let addr = self.addr_zero();
@@ -276,17 +278,14 @@ impl<'a> Cpu<'a> {
             0x68 => self.op_pla(),
             0x69 => {
                 let addr = self.fetch_op();
-                println!("(op_adc) addr: {}", addr);
-                self.op_adc(addr.into(), 2);
+                self.op_adc(addr, 2);
             }
             0x6A => self.op_ror_a(),
-            0x6C => {
-                let addr = self.fetch_opw();
-                self.op_jmp_indirect(addr);
-            }
+            0x6C => self.op_jmp_ind(),
             0x6D => {
                 let addr = self.addr_abs();
-                self.op_adc(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_adc(value, 4);
             }
             0x6E => {
                 let addr = self.addr_abs();
@@ -298,11 +297,13 @@ impl<'a> Cpu<'a> {
             }
             0x71 => {
                 let addr = self.addr_indy();
-                self.op_adc(addr, 5);
+                let value = self.load_byte(addr);
+                self.op_adc(value, 5);
             }
             0x75 => {
                 let addr = self.addr_zerox();
-                self.op_adc(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_adc(value, 4);
             }
             0x76 => {
                 let addr = self.addr_zerox();
@@ -311,11 +312,13 @@ impl<'a> Cpu<'a> {
             0x78 => self.op_sei(),
             0x79 => {
                 let addr = self.addr_absy();
-                self.op_adc(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_adc(value, 4);
             }
             0x7D => {
                 let addr = self.addr_absx();
-                self.op_adc(addr, 4);
+                let value = self.load_byte(addr);
+                self.op_adc(value, 4);
             }
             0x7E => {
                 let addr = self.addr_absx();
@@ -383,7 +386,7 @@ impl<'a> Cpu<'a> {
             }
             0xA0 => {
                 let addr = self.fetch_op();
-                self.op_ldy(addr.into(), 2);
+                self.op_ldy(addr, 2);
             }
             0xA1 => {
                 let addr = self.addr_indx();
@@ -681,10 +684,25 @@ impl<'a> Cpu<'a> {
         self.memory.read_byte(addr)
     }
 
+    /// Read a word from the memory the CPU is using
+    /// The 6502 is little endian, so the first byte is the LSB
+    /// and the second byte is the MSB
+    fn read_word(&self, addr: u16) -> u16 {
+        let lsb = self.read_memory(addr) as u16;
+        let msb = self.read_memory(addr + 1) as u16;
+        lsb | (msb << 8)
+    }
+
+    fn write_word(&mut self, addr: u16, value: u16) {
+        let lsb = value as u8;
+        let msb = (value >> 8) as u8;
+        self.write_memory(addr, lsb);
+        self.write_memory(addr + 1, msb);
+    }
+
     // ---- Math Instructions ----
     // ADC: Add with Carry
-    fn op_adc(&mut self, addr: u16, cycles: u32) {
-        let value = self.memory.read_byte(addr);
+    fn op_adc(&mut self, value: u8, cycles: u32) {
         let temp = self.a as u16 + value as u16 + if self.carry { 1 } else { 0 };
 
         self.overflow = (!(self.a ^ value) & (self.a ^ temp as u8) & 0x80) != 0;
@@ -710,8 +728,8 @@ impl<'a> Cpu<'a> {
 
     // ---- Memory Instructions ----
     // LDA: Load Accumulator
-    fn op_lda(&mut self, addr: u16, cycles: u32) {
-        self.a = self.memory.read_byte(addr);
+    fn op_lda(&mut self, value: u8, cycles: u32) {
+        self.a = value;
         self.update_zero_negative_flags(self.a);
         self.tick(cycles);
     }
@@ -724,8 +742,8 @@ impl<'a> Cpu<'a> {
     }
 
     // LDY: Load Y Register
-    fn op_ldy(&mut self, addr: u16, cycles: u32) {
-        self.y = self.memory.read_byte(addr);
+    fn op_ldy(&mut self, value: u8, cycles: u32) {
+        self.y = value;
         self.update_zero_negative_flags(self.y);
         self.tick(cycles);
     }
@@ -782,6 +800,7 @@ impl<'a> Cpu<'a> {
         if !self.carry {
             self.branch(offset);
         }
+        self.tick(2);
     }
 
     // BMI: Branch if Minus (Negative flag is set)
@@ -807,6 +826,7 @@ impl<'a> Cpu<'a> {
         if self.overflow {
             self.branch(offset);
         }
+        self.tick(2);
     }
 
     // BVC: Branch if Overflow Clear
@@ -948,6 +968,7 @@ impl<'a> Cpu<'a> {
         self.sp = self.sp.wrapping_add(1);
         self.a = self.memory.read_byte(0x0100 + self.sp as u16);
         self.update_zero_negative_flags(self.a);
+        self.tick(4);
     }
 
     // PLP: Pull Processor Status from Stack
@@ -973,12 +994,14 @@ impl<'a> Cpu<'a> {
     // TXS: Transfer X to Stack Pointer
     fn op_txs(&mut self) {
         self.sp = self.x;
+        self.tick(2);
     }
 
     // TSX: Transfer Stack Pointer to X
     fn op_tsx(&mut self) {
         self.x = self.sp;
         self.update_zero_negative_flags(self.x);
+        self.tick(2);
     }
 
     // Helper functions to convert between status flags and a single byte
@@ -1024,31 +1047,37 @@ impl<'a> Cpu<'a> {
     fn op_tax(&mut self) {
         self.x = self.a;
         self.update_zero_negative_flags(self.x);
+        self.tick(2);
     }
 
     fn op_tay(&mut self) {
         self.y = self.a;
         self.update_zero_negative_flags(self.y);
+        self.tick(2);
     }
 
     fn op_txa(&mut self) {
         self.a = self.x;
         self.update_zero_negative_flags(self.a);
+        self.tick(2);
     }
 
     fn op_tya(&mut self) {
         self.a = self.y;
         self.update_zero_negative_flags(self.a);
+        self.tick(2);
     }
 
     fn op_dex(&mut self) {
         self.x = self.x.wrapping_sub(1);
         self.update_zero_negative_flags(self.x);
+        self.tick(2);
     }
 
     fn op_dey(&mut self) {
         self.y = self.y.wrapping_sub(1);
         self.update_zero_negative_flags(self.y);
+        self.tick(2);
     }
 
     fn op_inx(&mut self) {
@@ -1063,21 +1092,16 @@ impl<'a> Cpu<'a> {
 
     // ---- Jump Instructions ----
     // JMP: Jump to Address
-    fn op_jmp(&mut self, addr: u16) {
+    fn op_jmp(&mut self) {
+        let addr = self.addr_abs();
         self.pc = addr;
+        self.tick(3);
     }
 
-    fn op_jmp_indirect(&mut self, addr: u16) {
-        let lo = self.memory.read_byte(addr);
-        let hi = self.memory.read_byte(addr + 1);
-        let addr = (hi as u16) << 8 | lo as u16;
-
-        // JMP bug
-        let lo = self.memory.read_byte(addr);
-        let hi = self.memory.read_byte(addr & 0xFF00 | ((addr + 1) & 0x00FF));
-        let addr = (hi as u16) << 8 | lo as u16;
-
+    fn op_jmp_ind(&mut self) {
+        let addr = self.read_word(self.addr_abs());
         self.pc = addr;
+        self.tick(3);
     }
 
     // JSR: Jump to Subroutine
@@ -1090,6 +1114,7 @@ impl<'a> Cpu<'a> {
     // RTS: Return from Subroutine
     fn op_rts(&mut self) {
         self.pc = self.pull_word().wrapping_add(1);
+        self.tick(6);
     }
 
     // RTI: Return from Interrupt
@@ -1177,21 +1202,25 @@ impl<'a> Cpu<'a> {
     // SEI: Set Interrupt Disable Flag
     fn op_sei(&mut self) {
         self.interrupt_disable = true;
+        self.tick(2);
     }
 
     // CLV: Clear Overflow Flag
     fn op_clv(&mut self) {
         self.overflow = false;
+        self.tick(2);
     }
 
     // CLD: Clear Decimal Mode Flag
     fn op_cld(&mut self) {
         self.decimal = false;
+        self.tick(2);
     }
 
     // SED: Set Decimal Mode Flag
     fn op_sed(&mut self) {
         self.decimal = true;
+        self.tick(2);
     }
 
     // ---- Other Instructions ----
