@@ -1,7 +1,9 @@
 use super::cpu::Cpu;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Cia1<'a> {
-    cpu: &'a mut Cpu<'a>,
+    cpu: Rc<RefCell<Cpu<'a>>>,
     timer_a_latch: u16,
     timer_b_latch: u16,
     timer_a_counter: i16,
@@ -22,7 +24,7 @@ pub struct Cia1<'a> {
 }
 
 impl<'a> Cia1<'a> {
-    pub fn new(cpu: &'a mut Cpu<'a>) -> Self {
+    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>) -> Self {
         Cia1 {
             cpu,
             timer_a_latch: 0,
@@ -133,8 +135,8 @@ impl<'a> Cia1<'a> {
                 if self.pra == 0xff {
                     retval = 0xff;
                 } else if self.pra != 0 {
-                    let col = 0;
-                    let v: u8 = !self.pra;
+                    let mut col = 0;
+                    let mut v: u8 = !self.pra;
                     while {
                         v >>= 1;
                         v != 0
@@ -142,7 +144,7 @@ impl<'a> Cia1<'a> {
                         col += 1;
                     }
 
-                    retval = self.io.keyboard_matrix(col);
+                    retval = self.io.keyboard_matrix_row(col);
                 }
             }
             // data direction port a (DDRA)
@@ -155,7 +157,7 @@ impl<'a> Cia1<'a> {
             }
             // timer a high byte
             0x5 => {
-                retval = ((self.timer_a_counter & 0xff00) >> 8) as u8;
+                retval = ((self.timer_a_counter as u16 & 0xff00) >> 8) as u8;
             }
             // timer b low byte
             0x6 => {
@@ -163,7 +165,7 @@ impl<'a> Cia1<'a> {
             }
             // timer b high byte
             0x7 => {
-                retval = ((self.timer_b_counter & 0xff00) >> 8) as u8;
+                retval = ((self.timer_b_counter as u16 & 0xff00) >> 8) as u8;
             }
             // RTC 1/10s
             0x8 => {}
@@ -218,15 +220,16 @@ impl<'a> Cia1<'a> {
         }
     }
 
-    pub fn emulate(&mut self) -> bool {
+    pub fn step(&mut self) -> bool {
         if self.timer_a_enabled {
             match self.timer_a_input_mode {
                 InputMode::Processor => {
-                    self.timer_a_counter -= (self.cpu.cycles() - self.prev_cpu_cycles) as i16;
+                    self.timer_a_counter -=
+                        (self.cpu.borrow().cycles() - self.prev_cpu_cycles) as i16;
                     if self.timer_a_counter <= 0 {
                         if self.timer_a_irq_enabled {
                             self.timer_a_irq_triggered = true;
-                            self.cpu.irq();
+                            self.cpu.borrow_mut().irq();
                         }
                         self.reset_timer_a();
                     }
@@ -239,11 +242,12 @@ impl<'a> Cia1<'a> {
         if self.timer_b_enabled {
             match self.timer_b_input_mode {
                 InputMode::Processor => {
-                    self.timer_b_counter -= (self.cpu.cycles() - self.prev_cpu_cycles) as i16;
+                    self.timer_b_counter -=
+                        (self.cpu.borrow().cycles() - self.prev_cpu_cycles) as i16;
                     if self.timer_b_counter <= 0 {
                         if self.timer_b_irq_enabled {
                             self.timer_b_irq_triggered = true;
-                            self.cpu.irq();
+                            self.cpu.borrow_mut().irq();
                         }
                         self.reset_timer_b();
                     }
@@ -253,7 +257,7 @@ impl<'a> Cia1<'a> {
                 InputMode::TimerACNT => {}
             }
         }
-        self.prev_cpu_cycles = self.cpu.cycles();
+        self.prev_cpu_cycles = self.cpu.borrow().cycles();
         true
     }
 }
