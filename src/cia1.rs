@@ -129,7 +129,52 @@ impl<'a> Cia1<'a> {
                 retval = self.pra;
             }
             // data port b (PRB), keyboard matrix rows and joystick #1
-            0x1 => {}
+            0x1 => {
+                if self.pra == 0xff {
+                    retval = 0xff;
+                } else if self.pra != 0 {
+                    let col = 0;
+                    let v: u8 = !self.pra;
+                    while {
+                        v >>= 1;
+                        v != 0
+                    } {
+                        col += 1;
+                    }
+
+                    retval = self.io.keyboard_matrix(col);
+                }
+            }
+            // data direction port a (DDRA)
+            0x2 => {}
+            // data direction port b (DDRB)
+            0x3 => {}
+            // timer a low byte
+            0x4 => {
+                retval = (self.timer_a_counter & 0x00ff) as u8;
+            }
+            // timer a high byte
+            0x5 => {
+                retval = ((self.timer_a_counter & 0xff00) >> 8) as u8;
+            }
+            // timer b low byte
+            0x6 => {
+                retval = (self.timer_b_counter & 0x00ff) as u8;
+            }
+            // timer b high byte
+            0x7 => {
+                retval = ((self.timer_b_counter & 0xff00) >> 8) as u8;
+            }
+            // RTC 1/10s
+            0x8 => {}
+            // RTC seconds
+            0x9 => {}
+            // RTC minutes
+            0xa => {}
+            // RTC hours
+            0xb => {}
+            // shift serial
+            0xc => {}
             // timer control and status
             0xd => {
                 if self.timer_a_irq_triggered || self.timer_b_irq_triggered {
@@ -142,6 +187,10 @@ impl<'a> Cia1<'a> {
                     }
                 }
             }
+            // control timer a
+            0xe => {}
+            // control timer b
+            0xf => {}
             _ => {}
         }
         retval
