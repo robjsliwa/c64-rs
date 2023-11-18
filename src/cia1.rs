@@ -1,9 +1,11 @@
 use super::cpu::Cpu;
+use super::keyboard::Keyboard;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct Cia1<'a> {
     cpu: Rc<RefCell<Cpu<'a>>>,
+    keyboard: Rc<RefCell<Keyboard>>,
     timer_a_latch: u16,
     timer_b_latch: u16,
     timer_a_counter: i16,
@@ -24,9 +26,10 @@ pub struct Cia1<'a> {
 }
 
 impl<'a> Cia1<'a> {
-    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>) -> Self {
+    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>, keyboard: Rc<RefCell<Keyboard>>) -> Self {
         Cia1 {
             cpu,
+            keyboard,
             timer_a_latch: 0,
             timer_b_latch: 0,
             timer_a_counter: 0,
@@ -144,7 +147,7 @@ impl<'a> Cia1<'a> {
                         col += 1;
                     }
 
-                    retval = self.io.keyboard_matrix_row(col);
+                    retval = self.keyboard.borrow().keyboard_matrix_row(col);
                 }
             }
             // data direction port a (DDRA)

@@ -1,17 +1,20 @@
 use crate::cia1::Cia1;
 use crate::cpu::Cpu;
+use crate::keyboard::Keyboard;
 use crate::memory::Memory;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 mod cia1;
 mod cpu;
+mod keyboard;
 mod memory;
 
 fn main() {
     let mut mem = Memory::new();
     let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
-    let mut cia1 = Cia1::new(cpu.clone());
+    let keyboard = Rc::new(RefCell::new(Keyboard::new()));
+    let mut cia1 = Cia1::new(cpu.clone(), keyboard.clone());
 
     // TEMP: Load the machine code into memory (for our sample program)
     // LDX #$03      ; Load X register with the number 3
