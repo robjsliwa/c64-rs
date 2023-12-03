@@ -9,6 +9,7 @@ mod cia1;
 mod cpu;
 mod keyboard;
 mod memory;
+mod video;
 
 fn main() {
     let mut mem = Memory::new();
