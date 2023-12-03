@@ -57,7 +57,8 @@ impl<'a> Cpu<'a> {
         self.cycles = 6;
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> bool {
+        let mut retval: bool = true;
         let opcode = self.memory.read_byte(self.pc);
         self.pc += 1; // Increment PC after fetching the opcode
 
@@ -628,8 +629,12 @@ impl<'a> Cpu<'a> {
                 let addr = self.addr_absx();
                 self.op_inc(addr, 7);
             }
-            _ => panic!("Unknown opcode: {:02X}", opcode),
+            _ => {
+                println!("Unknown opcode: {:02X}", opcode);
+                retval = false;
+            }
         }
+        retval
     }
 
     // ---- Helper Functions ----

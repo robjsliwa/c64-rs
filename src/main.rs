@@ -1,40 +1,17 @@
 use crate::cia1::Cia1;
 use crate::cpu::Cpu;
-use crate::keyboard::Keyboard;
+use crate::io::IO;
 use crate::memory::Memory;
-use sdl2::pixels::Color;
+use clap::{command, Arg};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 mod cia1;
 mod cpu;
-mod keyboard;
+mod io;
 mod memory;
-mod video;
 
-fn main() -> Result<(), String> {
-    let sdl_context = sdl2::init()?;
-    let video_subsystem = sdl_context.video()?;
-
-    let window = video_subsystem
-        .window("Commodore C64", 800, 600)
-        .position_centered()
-        .opengl()
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-
-    canvas.set_draw_color(Color::RGB(255, 0, 0));
-    canvas.clear();
-    canvas.present();
-    let mut event_pump = sdl_context.event_pump()?;
-
-    let mut mem = Memory::new();
-    let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
-    let keyboard = Rc::new(RefCell::new(Keyboard::new(cpu.clone(), event_pump)));
-    let mut cia1 = Cia1::new(cpu.clone(), keyboard.clone());
-
+fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>) {
     // TEMP: Load the machine code into memory (for our sample program)
     // LDX #$03      ; Load X register with the number 3
     // LDA #$05      ; Load accumulator with the number 5
@@ -65,7 +42,7 @@ fn main() -> Result<(), String> {
                     cpu.borrow().x,
                     cpu.borrow().y
                 );
-                cia1.step();
+                cia1.borrow_mut().step();
             }
             "load" => {
                 println!("Enter memory address (hex):");
@@ -108,6 +85,38 @@ fn main() -> Result<(), String> {
             _ => {
                 println!("Unknown command. Please enter a valid command.");
             }
+        }
+    }
+}
+
+fn main() -> Result<(), String> {
+    let mut mem = Memory::new();
+    let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
+    let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
+    let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
+
+    let matches = command!() // requires `cargo` feature
+        .arg(Arg::new("debug").short('d').long("debug"))
+        .get_matches();
+
+    println!("name: {:?}", matches.get_one::<String>("name"));
+
+    if matches.contains_id("debug") {
+        println!("Debug mode enabled");
+        debug(cpu, cia1);
+        return Ok(());
+    }
+
+    loop {
+        if !cia1.borrow_mut().step() {
+            break;
+        }
+        if !cpu.borrow_mut().step() {
+            break;
+        }
+
+        if !io.borrow_mut().step() {
+            break;
         }
     }
 
