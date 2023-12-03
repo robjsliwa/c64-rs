@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 pub struct Cia1<'a> {
     cpu: Rc<RefCell<Cpu<'a>>>,
-    keyboard: Rc<RefCell<Keyboard>>,
+    keyboard: Rc<RefCell<Keyboard<'a>>>,
     timer_a_latch: u16,
     timer_b_latch: u16,
     timer_a_counter: i16,
@@ -26,7 +26,7 @@ pub struct Cia1<'a> {
 }
 
 impl<'a> Cia1<'a> {
-    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>, keyboard: Rc<RefCell<Keyboard>>) -> Self {
+    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>, keyboard: Rc<RefCell<Keyboard<'a>>>) -> Self {
         Cia1 {
             cpu,
             keyboard,

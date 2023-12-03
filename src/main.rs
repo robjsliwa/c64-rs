@@ -2,6 +2,7 @@ use crate::cia1::Cia1;
 use crate::cpu::Cpu;
 use crate::keyboard::Keyboard;
 use crate::memory::Memory;
+use sdl2::pixels::Color;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -11,10 +12,27 @@ mod keyboard;
 mod memory;
 mod video;
 
-fn main() {
+fn main() -> Result<(), String> {
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
+
+    let window = video_subsystem
+        .window("Commodore C64", 800, 600)
+        .position_centered()
+        .opengl()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+
+    canvas.set_draw_color(Color::RGB(255, 0, 0));
+    canvas.clear();
+    canvas.present();
+    let mut event_pump = sdl_context.event_pump()?;
+
     let mut mem = Memory::new();
     let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
-    let keyboard = Rc::new(RefCell::new(Keyboard::new()));
+    let keyboard = Rc::new(RefCell::new(Keyboard::new(cpu.clone(), event_pump)));
     let mut cia1 = Cia1::new(cpu.clone(), keyboard.clone());
 
     // TEMP: Load the machine code into memory (for our sample program)
@@ -92,4 +110,6 @@ fn main() {
             }
         }
     }
+
+    Ok(())
 }

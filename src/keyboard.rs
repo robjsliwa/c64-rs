@@ -1,13 +1,19 @@
+use super::cpu::Cpu;
 use sdl2::keyboard::Keycode;
+use sdl2::EventPump;
+use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
+use std::rc::Rc;
 use std::vec::Vec;
 
-pub struct Keyboard {
+pub struct Keyboard<'a> {
+    cpu: Rc<RefCell<Cpu<'a>>>,
     keyboard_matrix: [u8; 8],
     keymap: HashMap<Keycode, (i32, i32)>,
     charmap: HashMap<char, Vec<Keycode>>,
     key_event_queue: VecDeque<(KeyEvent, Keycode)>,
     next_key_event_at: u32,
+    event_pump: EventPump,
 }
 
 enum KeyEvent {
@@ -15,14 +21,17 @@ enum KeyEvent {
     Release,
 }
 
-impl Keyboard {
-    pub fn new() -> Self {
+impl<'a> Keyboard<'a> {
+    pub const WAIT_DURATION: u32 = 18000;
+    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>, event_pump: EventPump) -> Self {
         let mut keyboard = Keyboard {
+            cpu,
             keyboard_matrix: [0xff; 8],
             keymap: HashMap::new(),
             charmap: HashMap::new(),
             key_event_queue: VecDeque::new(),
             next_key_event_at: 0,
+            event_pump,
         };
 
         // Initilize charmap
@@ -180,12 +189,46 @@ impl Keyboard {
         self.key_event_queue.push_back((event, key));
     }
 
-    pub fn process_key_event(&mut self) {
-        if let Some((event, key)) = self.key_event_queue.pop_front() {
-            match event {
-                KeyEvent::Press => self.handle_keydown(key),
-                KeyEvent::Release => self.handle_keyup(key),
+    pub fn type_character(&mut self, character: char) {
+        if let Some(keycodes) = self.charmap.get(&character).cloned() {
+            for keycode in keycodes {
+                self.queue_key_event(KeyEvent::Press, keycode);
+                self.queue_key_event(KeyEvent::Release, keycode);
             }
         }
+    }
+
+    pub fn process_events(&mut self) -> bool {
+        let events: Vec<sdl2::event::Event> = self.event_pump.poll_iter().collect();
+
+        for event in events {
+            match event {
+                sdl2::event::Event::KeyDown {
+                    keycode: Some(keycode),
+                    ..
+                } => self.handle_keydown(keycode),
+                sdl2::event::Event::KeyUp {
+                    keycode: Some(keycode),
+                    ..
+                } => self.handle_keyup(keycode),
+                sdl2::event::Event::Quit { .. } => {
+                    return false; // This will signal to exit the main loop
+                }
+                _ => {}
+            }
+        }
+
+        // Process fake keystrokes if any
+        if !self.key_event_queue.is_empty() && self.cpu.borrow().cycles() > self.next_key_event_at {
+            if let Some((event, keycode)) = self.key_event_queue.pop_front() {
+                match event {
+                    KeyEvent::Press => self.handle_keydown(keycode),
+                    KeyEvent::Release => self.handle_keyup(keycode),
+                }
+            }
+            self.next_key_event_at = self.cpu.borrow().cycles() + Self::WAIT_DURATION;
+        }
+
+        true // Continue running
     }
 }
