@@ -1,14 +1,14 @@
 use crate::memory::Memory;
 
 pub struct Cpu<'a> {
-    pub pc: u16,            // Program Counter
-    pub sp: u8,             // Stack Pointer
-    pub a: u8,              // Accumulator
-    pub x: u8,              // X register
-    pub y: u8,              // Y register
-    status: u8,             // Processor Status
-    memory: &'a mut Memory, // Reference to the memory
-    cycles: u32,            // CPU cycles
+    pub pc: u16,                // Program Counter
+    pub sp: u8,                 // Stack Pointer
+    pub a: u8,                  // Accumulator
+    pub x: u8,                  // X register
+    pub y: u8,                  // Y register
+    status: u8,                 // Processor Status
+    pub memory: &'a mut Memory, // Reference to the memory
+    cycles: u32,                // CPU cycles
 
     // Flags
     carry: bool,

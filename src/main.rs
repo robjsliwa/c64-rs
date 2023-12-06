@@ -89,21 +89,51 @@ fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>) {
     }
 }
 
+fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
+    let mut pc: u16 = 0x0;
+    cpu.borrow_mut()
+        .memory
+        .write_byte(Memory::ADDR_MEMORY_LAYOUT, 0);
+    cpu.borrow_mut()
+        .memory
+        .load_ram("tests/6502_functional_test.bin", 0x400)
+        .unwrap();
+    cpu.borrow_mut().pc = 0x400;
+    loop {
+        if pc == cpu.borrow().pc {
+            println!("Infinit loop at {:#04X}", pc);
+            break;
+        } else if cpu.borrow().pc == 0x3463 {
+            println!("Passed!");
+            break;
+        }
+        pc = cpu.borrow().pc;
+        if !cpu.borrow_mut().step() {
+            break;
+        }
+    }
+}
+
 fn main() -> Result<(), String> {
-    let mut mem = Memory::new();
+    let mut mem = Memory::new()?;
     let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
     let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
     let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
 
     let matches = command!() // requires `cargo` feature
         .arg(Arg::new("debug").short('d').long("debug"))
+        .arg(Arg::new("test").short('t').long("test"))
         .get_matches();
-
-    println!("name: {:?}", matches.get_one::<String>("name"));
 
     if matches.contains_id("debug") {
         println!("Debug mode enabled");
         debug(cpu, cia1);
+        return Ok(());
+    }
+
+    if matches.contains_id("test") {
+        println!("Test mode enabled");
+        test_cpu(cpu);
         return Ok(());
     }
 
