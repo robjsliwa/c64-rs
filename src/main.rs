@@ -89,6 +89,9 @@ fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>) {
     }
 }
 
+// uns Klaus Dormann's 6502 test suite
+//
+// https://github.com/Klaus2m5/6502_65C02_functional_tests
 fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
     let mut pc: u16 = 0x0;
     cpu.borrow_mut()
@@ -100,6 +103,7 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
         .unwrap();
     cpu.borrow_mut().pc = 0x400;
     loop {
+        println!("PC: {:#04X}", pc);
         if pc == cpu.borrow().pc {
             println!("Infinit loop at {:#04X}", pc);
             break;
