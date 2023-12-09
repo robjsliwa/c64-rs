@@ -2,7 +2,7 @@ use crate::cia1::Cia1;
 use crate::cpu::Cpu;
 use crate::io::IO;
 use crate::memory::Memory;
-use clap::{command, Arg};
+use clap::{command, Arg, Command};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -118,29 +118,7 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
     }
 }
 
-fn main() -> Result<(), String> {
-    let mut mem = Memory::new()?;
-    let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
-    let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
-    let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
-
-    let matches = command!() // requires `cargo` feature
-        .arg(Arg::new("debug").short('d').long("debug"))
-        .arg(Arg::new("test").short('t').long("test"))
-        .get_matches();
-
-    if matches.contains_id("debug") {
-        println!("Debug mode enabled");
-        debug(cpu, cia1);
-        return Ok(());
-    }
-
-    if matches.contains_id("test") {
-        println!("Test mode enabled");
-        test_cpu(cpu);
-        return Ok(());
-    }
-
+fn run_c64(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>, io: Rc<RefCell<IO>>) {
     loop {
         if !cia1.borrow_mut().step() {
             break;
@@ -152,6 +130,32 @@ fn main() -> Result<(), String> {
         if !io.borrow_mut().step() {
             break;
         }
+    }
+}
+
+fn main() -> Result<(), String> {
+    let mut mem = Memory::new()?;
+    let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
+    let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
+    let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
+
+    let matches = command!() // requires `cargo` feature
+        .subcommand(Command::new("debug"))
+        .subcommand(Command::new("test"))
+        .get_matches();
+
+    match matches.subcommand_name() {
+        Some("debug") => {
+            println!("Debug mode enabled");
+            debug(cpu, cia1);
+            return Ok(());
+        }
+        Some("test") => {
+            println!("Test mode enabled");
+            test_cpu(cpu);
+            return Ok(());
+        }
+        _ => run_c64(cpu, cia1, io),
     }
 
     Ok(())
