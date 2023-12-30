@@ -3,7 +3,7 @@ use super::cpu::Cpu;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-struct Cia2<'a> {
+pub struct Cia2<'a> {
     cpu: Rc<RefCell<Cpu<'a>>>,
     timer_a_latch: u16,
     timer_b_latch: u16,

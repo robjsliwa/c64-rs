@@ -1,8 +1,9 @@
 use crate::cia1::Cia1;
+use crate::cia2::Cia2;
 use crate::cpu::Cpu;
 use crate::io::IO;
 use crate::memory::Memory;
-use clap::{command, Arg, Command};
+use clap::{command, Command};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -120,7 +121,12 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
     }
 }
 
-fn run_c64(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>, io: Rc<RefCell<IO>>) {
+fn run_c64(
+    cpu: Rc<RefCell<Cpu>>,
+    cia1: Rc<RefCell<Cia1>>,
+    cia2: Rc<RefCell<Cia2>>,
+    io: Rc<RefCell<IO>>,
+) {
     loop {
         if !cia1.borrow_mut().step() {
             break;
@@ -140,8 +146,9 @@ fn main() -> Result<(), String> {
     let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
     let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
     let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
+    let cia2 = Rc::new(RefCell::new(Cia2::new(cpu.clone())));
 
-    let matches = command!() // requires `cargo` feature
+    let matches = command!()
         .subcommand(Command::new("debug"))
         .subcommand(Command::new("test"))
         .get_matches();
@@ -157,7 +164,7 @@ fn main() -> Result<(), String> {
             test_cpu(cpu);
             return Ok(());
         }
-        _ => run_c64(cpu, cia1, io),
+        _ => run_c64(cpu, cia1, cia2, io),
     }
 
     Ok(())
