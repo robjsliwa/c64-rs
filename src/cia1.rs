@@ -1,3 +1,4 @@
+use super::common::{InputMode, RunMode};
 use super::cpu::Cpu;
 use super::io::IO;
 use std::cell::RefCell;
@@ -263,31 +264,4 @@ impl<'a> Cia1<'a> {
         self.prev_cpu_cycles = self.cpu.borrow().cycles();
         true
     }
-}
-
-// Constants (enums)
-#[derive(Copy, Clone, PartialEq)]
-enum InputMode {
-    Processor,
-    CNT,
-    TimerA,
-    TimerACNT,
-}
-
-impl From<u8> for InputMode {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => InputMode::Processor,
-            1 => InputMode::CNT,
-            2 => InputMode::TimerA,
-            3 => InputMode::TimerACNT,
-            _ => panic!("Invalid value for InputMode: {}", value),
-        }
-    }
-}
-
-#[derive(Copy, Clone, PartialEq)]
-enum RunMode {
-    Restart,
-    OneTime,
 }

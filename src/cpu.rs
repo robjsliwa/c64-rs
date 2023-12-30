@@ -624,6 +624,15 @@ impl<'a> Cpu<'a> {
         self.cycles
     }
 
+    pub fn nmi(&mut self) {
+        self.push((self.pc >> 8) as u8 & 0xff);
+        self.push(self.pc as u8 & 0xff);
+        // push flags with BCF (Break Command flag) cleared
+        self.push(self.status_from_flags() & 0xef);
+        self.pc = self.memory.read_word(Memory::ADDR_NMI_VECTOR);
+        self.tick(7);
+    }
+
     pub fn irq(&mut self) {
         // Push the current program counter onto the stack
         self.push_word(self.pc);

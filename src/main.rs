@@ -7,6 +7,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 mod cia1;
+mod cia2;
+mod common;
 mod cpu;
 mod io;
 mod memory;

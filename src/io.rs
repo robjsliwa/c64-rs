@@ -18,6 +18,7 @@ pub struct IO<'a> {
     event_pump: EventPump,
     retval: bool,
     renderer: WindowCanvas,
+    frame: Vec<u32>,
 }
 
 enum KeyEvent {
@@ -39,6 +40,10 @@ impl<'a> IO<'a> {
             .map_err(|e| e.to_string())?;
 
         let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+        // TODO: get these values from VIC-II
+        let cols = 80;
+        let rows = 25;
+        let frame: Vec<u32> = vec![0; cols * rows];
 
         // canvas.set_draw_color(Color::RGB(255, 0, 0));
         canvas.clear();
@@ -54,6 +59,7 @@ impl<'a> IO<'a> {
             event_pump,
             retval: true,
             renderer: canvas,
+            frame,
         };
 
         // Initilize charmap
