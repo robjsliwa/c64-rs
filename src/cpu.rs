@@ -1,14 +1,14 @@
 use crate::memory::Memory;
 
 pub struct Cpu<'a> {
-    pub pc: u16,            // Program Counter
-    pub sp: u8,             // Stack Pointer
-    pub a: u8,              // Accumulator
-    pub x: u8,              // X register
-    pub y: u8,              // Y register
-    status: u8,             // Processor Status
-    memory: &'a mut Memory, // Reference to the memory
-    cycles: u32,            // CPU cycles
+    pub pc: u16,                // Program Counter
+    pub sp: u8,                 // Stack Pointer
+    pub a: u8,                  // Accumulator
+    pub x: u8,                  // X register
+    pub y: u8,                  // Y register
+    status: u8,                 // Processor Status
+    pub memory: &'a mut Memory, // Reference to the memory
+    cycles: u32,                // CPU cycles
 
     // Flags
     carry: bool,
@@ -57,7 +57,8 @@ impl<'a> Cpu<'a> {
         self.cycles = 6;
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> bool {
+        let mut retval: bool = true;
         let opcode = self.memory.read_byte(self.pc);
         self.pc += 1; // Increment PC after fetching the opcode
 
@@ -224,10 +225,7 @@ impl<'a> Cpu<'a> {
                 let addr = self.addr_abs();
                 self.op_lsr(addr, 6);
             }
-            0x50 => {
-                let offset = self.fetch_op() as i8;
-                self.op_bvc(offset);
-            }
+            0x50 => self.op_bvc(),
             0x51 => {
                 let addr = self.addr_indy();
                 let value = self.load_byte(addr);
@@ -288,10 +286,7 @@ impl<'a> Cpu<'a> {
                 let addr = self.addr_abs();
                 self.op_ror(addr, 6);
             }
-            0x70 => {
-                let offset = self.fetch_op() as i8;
-                self.op_bvs(offset);
-            }
+            0x70 => self.op_bvs(),
             0x71 => {
                 let addr = self.addr_indy();
                 let value = self.load_byte(addr);
@@ -351,10 +346,7 @@ impl<'a> Cpu<'a> {
                 let addr = self.addr_abs();
                 self.op_stx(addr, 4);
             }
-            0x90 => {
-                let offset = self.fetch_op() as i8;
-                self.op_bcc(offset);
-            }
+            0x90 => self.op_bcc(),
             0x91 => {
                 let addr = self.addr_indy();
                 self.op_sta(addr, 6);
@@ -430,10 +422,7 @@ impl<'a> Cpu<'a> {
                 let value = self.load_byte(addr);
                 self.op_ldx(value, 4);
             }
-            0xB0 => {
-                let offset = self.fetch_op() as i8;
-                self.op_bcs(offset);
-            }
+            0xB0 => self.op_bcs(),
             0xB1 => {
                 let addr = self.addr_indy();
                 let value = self.load_byte(addr);
@@ -519,10 +508,7 @@ impl<'a> Cpu<'a> {
                 let addr = self.addr_abs();
                 self.op_dec(addr, 6);
             }
-            0xD0 => {
-                let offset = self.fetch_op() as i8;
-                self.op_bne(offset);
-            }
+            0xD0 => self.op_bne(),
             0xD1 => {
                 let addr = self.addr_indy();
                 let value = self.load_byte(addr);
@@ -595,10 +581,7 @@ impl<'a> Cpu<'a> {
                 let addr = self.addr_abs();
                 self.op_inc(addr, 6);
             }
-            0xF0 => {
-                let offset = self.fetch_op() as i8;
-                self.op_beq(offset);
-            }
+            0xF0 => self.op_beq(),
             0xF1 => {
                 let addr = self.addr_indy();
                 let value = self.load_byte(addr);
@@ -628,11 +611,45 @@ impl<'a> Cpu<'a> {
                 let addr = self.addr_absx();
                 self.op_inc(addr, 7);
             }
-            _ => panic!("Unknown opcode: {:02X}", opcode),
+            _ => {
+                println!("Unknown opcode: {:02X}", opcode);
+                retval = false;
+            }
         }
+        retval
     }
 
     // ---- Helper Functions ----
+    pub fn cycles(&self) -> u32 {
+        self.cycles
+    }
+
+    pub fn nmi(&mut self) {
+        self.push((self.pc >> 8) as u8 & 0xff);
+        self.push(self.pc as u8 & 0xff);
+        // push flags with BCF (Break Command flag) cleared
+        self.push(self.status_from_flags() & 0xef);
+        self.pc = self.memory.read_word(Memory::ADDR_NMI_VECTOR);
+        self.tick(7);
+    }
+
+    pub fn irq(&mut self) {
+        // Push the current program counter onto the stack
+        self.push_word(self.pc);
+
+        // Push the processor status onto the stack
+        self.status_from_flags();
+        self.push(self.status);
+
+        // Set the IRQ disable flag
+        self.interrupt_disable = true;
+
+        // Load the program counter with the address from the IRQ vector
+        let lo = self.memory.read_byte(Memory::ADDR_IRQ_VECTOR) as u16;
+        let hi = self.memory.read_byte(Memory::ADDR_IRQ_VECTOR + 1) as u16;
+        self.pc = (hi << 8) | lo;
+    }
+
     pub fn load_byte(&self, addr: u16) -> u8 {
         self.memory.read_byte(addr)
     }
@@ -799,73 +816,82 @@ impl<'a> Cpu<'a> {
 
     // ---- Branching Instructions ----
     // BEQ: Branch if Equal (Zero flag is set)
-    fn op_beq(&mut self, offset: i8) {
+    fn op_beq(&mut self) {
+        let addr: u16 = self.fetch_op() as u16 + self.pc;
         if self.zero {
-            self.branch(offset);
+            self.branch(addr);
         }
         self.tick(2);
     }
 
     // BNE: Branch if Not Equal (Zero flag is clear)
-    fn op_bne(&mut self, offset: i8) {
+    fn op_bne(&mut self) {
+        let addr: u16 = self.fetch_op() as u16 + self.pc;
         if !self.zero {
-            self.branch(offset);
+            self.branch(addr);
         }
         self.tick(2);
     }
 
     // BCS: Branch if Carry Set
-    fn op_bcs(&mut self, offset: i8) {
+    fn op_bcs(&mut self) {
+        let addr: u16 = self.fetch_op() as u16 + self.pc;
         if self.carry {
-            self.branch(offset);
+            self.branch(addr);
         }
         self.tick(2);
     }
 
     // BCC: Branch if Carry Clear
-    fn op_bcc(&mut self, offset: i8) {
+    fn op_bcc(&mut self) {
+        let addr: u16 = self.fetch_op() as u16 + self.pc;
         if !self.carry {
-            self.branch(offset);
+            self.branch(addr);
         }
         self.tick(2);
     }
 
     // BMI: Branch if Minus (Negative flag is set)
     fn op_bmi(&mut self) {
-        let offset = self.fetch_op() + self.pc as u8;
+        let addr = self.fetch_op() as u16 + self.pc;
         if self.negative {
-            self.branch(offset as i8);
+            self.branch(addr);
         }
         self.tick(2);
     }
 
     // BPL: Branch if Positive (Negative flag is clear)
     fn op_bpl(&mut self) {
-        let offset = self.fetch_op() + self.pc as u8;
+        let addr = self.fetch_op() as u16 + self.pc;
         if !self.negative {
-            self.branch(offset as i8);
+            self.branch(addr);
         }
         self.tick(2);
     }
 
     // BVS: Branch if Overflow Set
-    fn op_bvs(&mut self, offset: i8) {
+    fn op_bvs(&mut self) {
+        let addr: u16 = self.fetch_op() as u16 + self.pc;
         if self.overflow {
-            self.branch(offset);
+            self.branch(addr);
         }
         self.tick(2);
     }
 
     // BVC: Branch if Overflow Clear
-    fn op_bvc(&mut self, offset: i8) {
+    fn op_bvc(&mut self) {
+        let addr: u16 = self.fetch_op() as u16 + self.pc;
         if !self.overflow {
-            self.branch(offset);
+            self.branch(addr);
         }
     }
 
     // Helper function to handle branching
-    fn branch(&mut self, offset: i8) {
-        self.pc = (self.pc as i16 + offset as i16) as u16;
+    // fn branch(&mut self, offset: i8) {
+    //     self.pc = (self.pc as i16 + offset as i16) as u16;
+    // }
+    fn branch(&mut self, addr: u16) {
+        self.pc = addr;
     }
 
     // ---- Bitwise Instructions ----

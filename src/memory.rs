@@ -1,3 +1,57 @@
+use std::fs::File;
+use std::io::{self, Read};
+use std::path::Path;
+
+// DRAM
+// $0000-$00FF  Page 0        Zeropage addressing
+// $0100-$01FF  Page 1        Enhanced Zeropage contains the stack
+// $0200-$02FF  Page 2        Operating System and BASIC pointers
+// $0300-$03FF  Page 3        Operating System and BASIC pointers
+// $0400-$07FF  Page 4-7      Screen Memory
+// $0800-$9FFF  Page 8-159    Free BASIC program storage area (38911 bytes)
+// $A000-$BFFF  Page 160-191  Free machine language program storage area (when switched-out with ROM)
+// $C000-$CFFF  Page 192-207  Free machine language program storage area
+// $D000-$D3FF  Page 208-211
+// $D400-$D4FF  Page 212-215
+// $D800-$DBFF  Page 216-219
+// $DC00-$DCFF  Page 220
+// $DD00-$DDFF  Page 221
+// $DE00-$DFFF  Page 222-223  Reserved for interface extensions
+// $E000-$FFFF  Page 224-255  Free machine language program storage area (when switched-out with ROM)
+
+enum BankCfg {
+    Rom = 0,
+    Ram = 1,
+    Io = 2,
+}
+
+impl BankCfg {
+    fn as_u8(self) -> u8 {
+        self as u8
+    }
+
+    fn from_u8(value: u8) -> Option<BankCfg> {
+        match value {
+            0 => Some(BankCfg::Rom),
+            1 => Some(BankCfg::Ram),
+            2 => Some(BankCfg::Io),
+            _ => None,
+        }
+    }
+}
+
+enum Banks {
+    BankBasic = 3,
+    BankCharen = 5,
+    BankKernal = 6,
+}
+
+impl Banks {
+    fn to_usize(self) -> usize {
+        self as usize
+    }
+}
+
 pub struct Memory {
     mem_ram: Vec<u8>, // RAM buffer
     mem_rom: Vec<u8>, // ROM buffer
@@ -36,18 +90,22 @@ impl Memory {
     pub const HIRAM: u8 = 1 << 1;
     pub const CHAREN: u8 = 1 << 2;
 
-    pub fn new() -> Self {
-        let mem_ram = vec![0; 65536]; // 64KB buffer initialized to zero
-        let mem_rom = vec![0; 65536]; // 64KB buffer initialized to zero
+    pub fn new() -> Result<Self, String> {
+        let mem_ram = vec![0; Memory::MEM_SIZE]; // 64KB buffer initialized to zero
+        let mem_rom = vec![0; Memory::MEM_SIZE]; // 64KB buffer initialized to zero
         let banks = [0; 7]; // Initialize the banks array
 
-        // TODO: Set up the default memory layout and load ROMs
-
-        Memory {
+        let mut memory = Memory {
             mem_ram,
             mem_rom,
             banks,
-        }
+        };
+
+        memory
+            .setup_memory_banks(Self::LORAM | Self::HIRAM | Self::CHAREN)
+            .map_err(|e| format!("Failed to load ROMs: {}", e))?;
+
+        Ok(memory)
     }
 
     // Writes a byte to RAM without performing I/O
@@ -57,16 +115,91 @@ impl Memory {
 
     // Writes a byte to RAM handling I/O
     pub fn write_byte(&mut self, addr: u16, value: u8) {
-        // TODO: Implement logic for handling writes to special memory addresses
-        // Placeholder for VIC, CIA1, CIA2 interactions
-        self.mem_ram[addr as usize] = value;
+        let page = addr & 0xff00;
+
+        if page == Self::ADDR_ZERO_PAGE {
+            if addr == Self::ADDR_MEMORY_LAYOUT {
+                self.setup_memory_banks(value)
+                    .expect("Failed to set up memory banks");
+            } else {
+                self.mem_ram[addr as usize] = value;
+            }
+        } else if page >= Self::ADDR_VIC_FIRST_PAGE && addr <= Self::ADDR_VIC_LAST_PAGE {
+            if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                // vic.write_register(addr&0x7f, value);
+                todo!();
+            } else {
+                self.mem_ram[addr as usize] = value;
+            }
+        } else if page == Self::ADDR_CIA1_PAGE {
+            if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                // cia1.write_register(addr&0x0f, value);
+                todo!();
+            } else {
+                self.mem_ram[addr as usize] = value;
+            }
+        } else if page == Self::ADDR_CIA2_PAGE {
+            if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                // cia2.write_register(addr&0x0f, value);
+            } else {
+                self.mem_ram[addr as usize] = value;
+            }
+        } else {
+            self.mem_ram[addr as usize] = value;
+        }
     }
 
     // Reads a byte from RAM or ROM depending on the bank configuration
     pub fn read_byte(&self, addr: u16) -> u8 {
-        // TODO: Implement logic for handling reads from special memory addresses
-        // Placeholder for VIC, CIA1, CIA2 interactions
-        self.mem_ram[addr as usize]
+        let page = addr & 0xff00;
+        match page {
+            _ if (Self::ADDR_VIC_FIRST_PAGE..=Self::ADDR_VIC_LAST_PAGE).contains(&page) => {
+                // match self.banks[Banks::BankCharen.to_usize()] {
+                //     BankCfg::Io => self.vic.read_register(addr & 0x7f),
+                //     BankCfg::Rom => self.mem_rom[addr as usize],
+                //     _ => self.mem_ram[addr as usize],
+                // }
+                if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                    // self.vic.read_register(addr & 0x7f)
+                    todo!();
+                } else if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Rom.as_u8() {
+                    self.mem_rom[addr as usize]
+                } else {
+                    self.mem_ram[addr as usize]
+                }
+            }
+            _ if page == Self::ADDR_CIA1_PAGE => {
+                if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                    // self.cia1.read_register(addr & 0x0f)
+                    todo!();
+                } else {
+                    self.mem_ram[addr as usize]
+                }
+            }
+            _ if page == Self::ADDR_CIA2_PAGE => {
+                if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                    // self.cia2.read_register(addr & 0x0f)
+                    todo!();
+                } else {
+                    self.mem_ram[addr as usize]
+                }
+            }
+            _ if (Self::ADDR_BASIC_FIRST_PAGE..=Self::ADDR_BASIC_LAST_PAGE).contains(&page) => {
+                if self.banks[Banks::BankBasic.to_usize()] == BankCfg::Rom.as_u8() {
+                    self.mem_rom[addr as usize]
+                } else {
+                    self.mem_ram[addr as usize]
+                }
+            }
+            _ if (Self::ADDR_KERNAL_FIRST_PAGE..=Self::ADDR_KERNAL_LAST_PAGE).contains(&page) => {
+                if self.banks[Banks::BankKernal.to_usize()] == BankCfg::Rom.as_u8() {
+                    self.mem_rom[addr as usize]
+                } else {
+                    self.mem_ram[addr as usize]
+                }
+            }
+            _ => self.mem_ram[addr as usize],
+        }
     }
 
     // Reads a byte without performing I/O, always from RAM
@@ -75,47 +208,40 @@ impl Memory {
     }
 
     // Sets up the memory bank configuration based on specific flags
-    pub fn setup_memory_banks(&mut self, config: u8) {
-        // Extract config bits
-        let hiram = (config & 0x01) != 0; // Placeholder for kHIRAM
-        let loram = (config & 0x02) != 0; // Placeholder for kLORAM
-        let charen = (config & 0x04) != 0; // Placeholder for kCHAREN
-
-        // TODO: Define constants for memory banks and bank configurations
+    pub fn setup_memory_banks(&mut self, config: u8) -> io::Result<()> {
+        let hiram = (config & Self::HIRAM) != 0;
+        let loram = (config & Self::LORAM) != 0;
+        let charen = (config & Self::CHAREN) != 0;
 
         // Initialize everything to RAM
-        for bank in &mut self.banks {
-            *bank = 0; // Placeholder for kRAM
+        for bank in self.banks.iter_mut() {
+            *bank = BankCfg::Ram.as_u8();
         }
 
-        // Set ROM or IO based on the configuration
-        // TODO: Update this based on actual memory mapping and bank configurations
+        self.load_rom("basic.901226-01.bin", Self::BASE_ADDR_BASIC)?;
+        self.load_rom("characters.901225-01.bin", Self::BASE_ADDR_CHARS)?;
+        self.load_rom("kernal.901227-03.bin", Self::BASE_ADDR_KERNAL)?;
+
+        // Set banks based on configuration
         if hiram {
-            self.banks[0] = 1; // Placeholder for kROM/Kernal
+            self.banks[Banks::BankKernal.to_usize()] = BankCfg::Rom.as_u8();
         }
         if loram && hiram {
-            self.banks[1] = 1; // Placeholder for kROM/Basic
+            self.banks[Banks::BankBasic.to_usize()] = BankCfg::Rom.as_u8();
         }
         if charen && (loram || hiram) {
-            self.banks[2] = 2; // Placeholder for kIO
+            self.banks[Banks::BankCharen.to_usize()] = BankCfg::Io.as_u8();
         } else if charen && !loram && !hiram {
-            self.banks[2] = 0; // Placeholder for kRAM
+            self.banks[Banks::BankCharen.to_usize()] = BankCfg::Ram.as_u8();
         } else {
-            self.banks[2] = 1; // Placeholder for kROM
+            self.banks[Banks::BankCharen.to_usize()] = BankCfg::Rom.as_u8();
         }
 
-        // TODO: Load ROMs and set other configurations as needed
-    }
+        // Write the configuration to the zero page
+        // Adjust this part according to your implementation of write_byte_no_io
+        self.write_byte_no_io(Self::ADDR_MEMORY_LAYOUT, config);
 
-    // Mock implementation to load ROM data into memory
-    pub fn load_rom(&mut self, rom_name: &str, address: u16) {
-        // TODO: Implement actual ROM loading logic (e.g., from a file or other source)
-        // For now, we'll just fill the memory at the given address with placeholder data
-
-        let placeholder_data = vec![0xFF; 4096]; // 4KB of placeholder data
-        for (i, &byte) in placeholder_data.iter().enumerate() {
-            self.mem_rom[(address as usize) + i] = byte;
-        }
+        Ok(())
     }
 
     /// Reads a 16-bit word from memory at the given address
@@ -131,5 +257,43 @@ impl Memory {
         let msb = ((value >> 8) & 0xFF) as u8;
         self.write_byte(addr, lsb);
         self.write_byte(addr + 1, msb);
+    }
+
+    pub fn load_rom(&mut self, filename: &str, baseaddr: u16) -> io::Result<()> {
+        let path = Path::new("./assets/roms/").join(filename);
+        let mut file = File::open(path)?;
+
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        let baseaddr = baseaddr as usize;
+        for (i, &byte) in contents.iter().enumerate() {
+            if let Some(slot) = self.mem_rom.get_mut(baseaddr + i) {
+                *slot = byte;
+            } else {
+                break; // Prevent writing beyond the buffer's end
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn load_ram(&mut self, filename: &str, baseaddr: u16) -> io::Result<()> {
+        let path = Path::new("./assets/").join(filename);
+        let mut file = File::open(path)?;
+
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        let baseaddr = baseaddr as usize;
+        for (i, &byte) in contents.iter().enumerate() {
+            if let Some(slot) = self.mem_ram.get_mut(baseaddr + i) {
+                *slot = byte;
+            } else {
+                break; // Prevent writing beyond the buffer's end
+            }
+        }
+
+        Ok(())
     }
 }
