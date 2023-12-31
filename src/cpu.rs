@@ -62,7 +62,8 @@ impl Cpu {
     pub fn step(&mut self) -> bool {
         let mut retval: bool = true;
         let opcode = self.memory.borrow().read_byte(self.pc);
-        self.pc += 1; // Increment PC after fetching the opcode
+        // println!("PC: {:04X} OP: {:02X}", self.pc, opcode);
+        self.pc += 1;
 
         match opcode {
             0x00 => self.op_brk(),
@@ -83,7 +84,7 @@ impl Cpu {
             0x08 => self.op_php(),
             0x09 => {
                 let addr = self.fetch_op();
-                self.op_ora(addr.into(), 2);
+                self.op_ora(addr, 2);
             }
             0x0A => self.op_asl_a(),
             0x0D => {
@@ -406,7 +407,7 @@ impl Cpu {
             0xA8 => self.op_tay(),
             0xA9 => {
                 let addr = self.fetch_op();
-                self.op_lda(addr.into(), 2);
+                self.op_lda(addr, 2);
             }
             0xAA => self.op_tax(),
             0xAC => {
@@ -542,7 +543,7 @@ impl Cpu {
             }
             0xE0 => {
                 let addr = self.fetch_op();
-                self.op_cpx(addr.into(), 2);
+                self.op_cpx(addr, 2);
             }
             0xE1 => {
                 let addr = self.addr_indx();
