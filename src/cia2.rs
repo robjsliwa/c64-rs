@@ -3,8 +3,8 @@ use super::cpu::Cpu;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct Cia2 {
-    cpu: Rc<RefCell<Cpu>>,
+pub struct Cia2<'a> {
+    cpu: Rc<RefCell<Cpu<'a>>>,
     timer_a_latch: u16,
     timer_b_latch: u16,
     timer_a_counter: i16,
@@ -24,8 +24,8 @@ pub struct Cia2 {
     prb: u8,
 }
 
-impl Cia2 {
-    pub fn new(cpu: Rc<RefCell<Cpu>>) -> Self {
+impl<'a> Cia2<'a> {
+    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>) -> Self {
         Cia2 {
             cpu,
             timer_a_latch: 0,

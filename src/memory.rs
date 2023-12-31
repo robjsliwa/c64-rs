@@ -1,6 +1,10 @@
+use super::cia1::Cia1;
+use super::cia2::Cia2;
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
+use std::rc::Rc;
 
 // DRAM
 // $0000-$00FF  Page 0        Zeropage addressing
@@ -52,17 +56,17 @@ impl Banks {
     }
 }
 
-pub struct Memory {
+pub struct Memory<'a> {
     mem_ram: Vec<u8>, // RAM buffer
     mem_rom: Vec<u8>, // ROM buffer
     banks: [u8; 7],   // Memory bank configurations
-                      // vic: Option<*mut Vic>, // Using raw pointers for external device references
-                      // cia1: Option<*mut Cia1>,
-                      // cia2: Option<*mut Cia2>,
-                      // sid: Option<*mut Sid>,
+    // vic: Option<*mut Vic>, // Using raw pointers for external device references
+    cia1: Option<Rc<RefCell<Cia1<'a>>>>, // cia1: Option<*mut Cia1>,
+    cia2: Option<Rc<RefCell<Cia2<'a>>>>, // cia2: Option<*mut Cia2>,
+                                         // sid: Option<*mut Sid>,
 }
 
-impl Memory {
+impl<'a> Memory<'a> {
     pub const MEM_SIZE: usize = 0x10000;
     pub const BASE_ADDR_BASIC: u16 = 0xa000;
     pub const BASE_ADDR_KERNAL: u16 = 0xe000;
@@ -99,6 +103,8 @@ impl Memory {
             mem_ram,
             mem_rom,
             banks,
+            cia1: None,
+            cia2: None,
         };
 
         memory
@@ -106,6 +112,14 @@ impl Memory {
             .map_err(|e| format!("Failed to load ROMs: {}", e))?;
 
         Ok(memory)
+    }
+
+    pub fn set_cia1(&mut self, cia1: Rc<RefCell<Cia1<'a>>>) {
+        self.cia1 = Some(cia1);
+    }
+
+    pub fn set_cia2(&mut self, cia2: Rc<RefCell<Cia2<'a>>>) {
+        self.cia2 = Some(cia2);
     }
 
     // Writes a byte to RAM without performing I/O
@@ -133,14 +147,21 @@ impl Memory {
             }
         } else if page == Self::ADDR_CIA1_PAGE {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                // cia1.write_register(addr & 0x0f, value);
-                todo!();
+                self.cia1
+                    .as_ref()
+                    .unwrap()
+                    .borrow_mut()
+                    .write_register((addr & 0x0f).try_into().unwrap(), value)
             } else {
                 self.mem_ram[addr as usize] = value;
             }
         } else if page == Self::ADDR_CIA2_PAGE {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                // cia2.write_register(addr&0x0f, value);
+                self.cia2
+                    .as_ref()
+                    .unwrap()
+                    .borrow_mut()
+                    .write_register((addr & 0x0f).try_into().unwrap(), value);
             } else {
                 self.mem_ram[addr as usize] = value;
             }
@@ -170,16 +191,22 @@ impl Memory {
             }
             _ if page == Self::ADDR_CIA1_PAGE => {
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                    // self.cia1.read_register(addr & 0x0f)
-                    todo!();
+                    self.cia1
+                        .as_ref()
+                        .unwrap()
+                        .borrow_mut()
+                        .read_register((addr & 0x0f).try_into().unwrap())
                 } else {
                     self.mem_ram[addr as usize]
                 }
             }
             _ if page == Self::ADDR_CIA2_PAGE => {
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                    // self.cia2.read_register(addr & 0x0f)
-                    todo!();
+                    self.cia2
+                        .as_ref()
+                        .unwrap()
+                        .borrow_mut()
+                        .read_register((addr & 0x0f).try_into().unwrap())
                 } else {
                     self.mem_ram[addr as usize]
                 }

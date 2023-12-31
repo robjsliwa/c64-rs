@@ -188,6 +188,8 @@ fn main() -> Result<(), String> {
     )?));
     let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
     let cia2 = Rc::new(RefCell::new(Cia2::new(cpu.clone())));
+    mem.borrow_mut().set_cia1(cia1.clone());
+    mem.borrow_mut().set_cia2(cia2.clone());
 
     let matches = command!()
         .subcommand(Command::new("debug"))

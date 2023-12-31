@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use std::vec::Vec;
 
 pub struct IO<'a> {
-    cpu: Rc<RefCell<Cpu>>,
+    cpu: Rc<RefCell<Cpu<'a>>>,
     keyboard_matrix: [u8; 8],
     keymap: HashMap<Keycode, (i32, i32)>,
     charmap: HashMap<char, Vec<Keycode>>,
@@ -37,7 +37,7 @@ enum KeyEvent {
 impl<'a> IO<'a> {
     pub const WAIT_DURATION: u32 = 18000;
     pub fn new(
-        cpu: Rc<RefCell<Cpu>>,
+        cpu: Rc<RefCell<Cpu<'a>>>,
         renderer: &'a mut WindowCanvas,
         texture: Rc<RefCell<Texture<'a>>>,
         event_pump: Rc<RefCell<EventPump>>,

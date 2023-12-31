@@ -2,15 +2,15 @@ use crate::memory::Memory;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct Cpu {
-    pub pc: u16,                     // Program Counter
-    pub sp: u8,                      // Stack Pointer
-    pub a: u8,                       // Accumulator
-    pub x: u8,                       // X register
-    pub y: u8,                       // Y register
-    status: u8,                      // Processor Status
-    pub memory: Rc<RefCell<Memory>>, // Reference to the memory
-    cycles: u32,                     // CPU cycles
+pub struct Cpu<'a> {
+    pub pc: u16,                         // Program Counter
+    pub sp: u8,                          // Stack Pointer
+    pub a: u8,                           // Accumulator
+    pub x: u8,                           // X register
+    pub y: u8,                           // Y register
+    status: u8,                          // Processor Status
+    pub memory: Rc<RefCell<Memory<'a>>>, // Reference to the memory
+    cycles: u32,                         // CPU cycles
 
     // Flags
     carry: bool,
@@ -22,8 +22,8 @@ pub struct Cpu {
     negative: bool,
 }
 
-impl Cpu {
-    pub fn new(memory: Rc<RefCell<Memory>>) -> Self {
+impl<'a> Cpu<'a> {
+    pub fn new(memory: Rc<RefCell<Memory<'a>>>) -> Self {
         Cpu {
             pc: 0,
             sp: 0xFF, // Stack starts at 0xFF
