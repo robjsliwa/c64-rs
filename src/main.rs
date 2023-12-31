@@ -3,7 +3,14 @@ use crate::cia2::Cia2;
 use crate::cpu::Cpu;
 use crate::io::IO;
 use crate::memory::Memory;
+use crate::vic::Vic;
+use bytemuck::cast_slice;
 use clap::{command, Command};
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::{Texture, TextureCreator, WindowCanvas};
+use sdl2::surface::Surface;
+use sdl2::video::WindowContext;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -13,6 +20,7 @@ mod common;
 mod cpu;
 mod io;
 mod memory;
+mod vic;
 
 fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>) {
     // TEMP: Load the machine code into memory (for our sample program)
@@ -99,9 +107,11 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
     let mut pc: u16 = 0x0;
     cpu.borrow_mut()
         .memory
+        .borrow_mut()
         .write_byte(Memory::ADDR_MEMORY_LAYOUT, 0);
     cpu.borrow_mut()
         .memory
+        .borrow_mut()
         .load_ram("tests/6502_functional_test.bin", 0x400)
         .unwrap();
     cpu.borrow_mut().pc = 0x400;
@@ -131,6 +141,11 @@ fn run_c64(
         if !cia1.borrow_mut().step() {
             break;
         }
+
+        if !cia2.borrow_mut().step() {
+            break;
+        }
+
         if !cpu.borrow_mut().step() {
             break;
         }
@@ -142,9 +157,35 @@ fn run_c64(
 }
 
 fn main() -> Result<(), String> {
-    let mut mem = Memory::new()?;
-    let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
-    let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
+
+    let cols = Vic::VISIBLE_SCREEN_WIDTH;
+    let rows = Vic::VISIBLE_SCREEN_HEIGHT;
+    let window = video_subsystem
+        .window("Commodore C64", 800, 600)
+        .position_centered()
+        .opengl()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+    let texture_creator = canvas.texture_creator();
+
+    let surface = Surface::new(cols, rows, PixelFormatEnum::ABGR8888).map_err(|e| e.to_string())?;
+    let texture = Texture::from_surface(&surface, &texture_creator).map_err(|e| e.to_string())?;
+    canvas.clear();
+    canvas.present();
+    let event_pump = sdl_context.event_pump()?;
+
+    let mem = Rc::new(RefCell::new(Memory::new()?));
+    let cpu = Rc::new(RefCell::new(Cpu::new(mem.clone())));
+    let io = Rc::new(RefCell::new(IO::new(
+        cpu.clone(),
+        &mut canvas,
+        Rc::new(RefCell::new(texture)),
+        Rc::new(RefCell::new(event_pump)),
+    )?));
     let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
     let cia2 = Rc::new(RefCell::new(Cia2::new(cpu.clone())));
 

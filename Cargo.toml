@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.4.10", features = ["derive", "cargo"] }
 sdl2 = "0.35.2"
+bytemuck = "1.14.0"

@@ -3,8 +3,8 @@ use super::cpu::Cpu;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct Cia2<'a> {
-    cpu: Rc<RefCell<Cpu<'a>>>,
+pub struct Cia2 {
+    cpu: Rc<RefCell<Cpu>>,
     timer_a_latch: u16,
     timer_b_latch: u16,
     timer_a_counter: i16,
@@ -24,8 +24,8 @@ pub struct Cia2<'a> {
     prb: u8,
 }
 
-impl<'a> Cia2<'a> {
-    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>) -> Self {
+impl Cia2 {
+    pub fn new(cpu: Rc<RefCell<Cpu>>) -> Self {
         Cia2 {
             cpu,
             timer_a_latch: 0,
@@ -140,17 +140,17 @@ impl<'a> Cia2<'a> {
     }
 
     pub fn reset_timer_a(&mut self) {
-        match self.timer_a_run_mode {
-            kModeRestart => self.timer_a_counter = self.timer_a_latch as i16,
-            kModeOneTime => self.timer_a_enabled = false,
+        match RunMode::from_u8(self.timer_a_run_mode) {
+            Some(RunMode::Restart) => self.timer_a_counter = self.timer_a_latch as i16,
+            Some(RunMode::OneTime) => self.timer_a_enabled = false,
             _ => {}
         }
     }
 
     pub fn reset_timer_b(&mut self) {
-        match self.timer_b_run_mode {
-            kModeRestart => self.timer_b_counter = self.timer_b_latch as i16,
-            kModeOneTime => self.timer_b_enabled = false,
+        match RunMode::from_u8(self.timer_b_run_mode) {
+            Some(RunMode::Restart) => self.timer_b_counter = self.timer_b_latch as i16,
+            Some(RunMode::OneTime) => self.timer_b_enabled = false,
             _ => {}
         }
     }
@@ -162,8 +162,8 @@ impl<'a> Cia2<'a> {
     pub fn step(&mut self) -> bool {
         // Timer A
         if self.timer_a_enabled {
-            match self.timer_a_input_mode {
-                kModeProcessor => {
+            match InputMode::from(self.timer_a_input_mode) {
+                InputMode::Processor => {
                     self.timer_a_counter -=
                         (self.cpu.borrow().cycles() - self.prev_cpu_cycles) as i16;
                     if self.timer_a_counter <= 0 {
@@ -174,14 +174,15 @@ impl<'a> Cia2<'a> {
                         self.reset_timer_a();
                     }
                 }
-                kModeCNT => {}
+                InputMode::CNT => {}
+                _ => {}
             }
         }
 
         // Timer B
         if self.timer_b_enabled {
-            match self.timer_b_input_mode {
-                kModeProcessor => {
+            match InputMode::from(self.timer_b_input_mode) {
+                InputMode::Processor => {
                     self.timer_b_counter -=
                         (self.cpu.borrow().cycles() - self.prev_cpu_cycles) as i16;
                     if self.timer_b_counter <= 0 {
@@ -192,9 +193,9 @@ impl<'a> Cia2<'a> {
                         self.reset_timer_b();
                     }
                 }
-                kModeCNT => {}
-                kModeTimerA => {}
-                kModeTimerACNT => {}
+                InputMode::CNT => {}
+                InputMode::TimerA => {}
+                InputMode::TimerACNT => {}
             }
         }
 

@@ -1,24 +1,36 @@
 use super::cpu::Cpu;
+use super::vic::Vic;
+use bytemuck::cast_slice;
 use sdl2::keyboard::Keycode;
-use sdl2::render::WindowCanvas;
-use sdl2::video::Window;
-use sdl2::EventPump;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::{Texture, TextureCreator, WindowCanvas};
+use sdl2::surface::Surface;
+use sdl2::video::WindowContext;
+use sdl2::{event, EventPump};
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
+use std::thread;
+use std::time::{Duration, Instant};
 use std::vec::Vec;
 
 pub struct IO<'a> {
-    cpu: Rc<RefCell<Cpu<'a>>>,
+    cpu: Rc<RefCell<Cpu>>,
     keyboard_matrix: [u8; 8],
     keymap: HashMap<Keycode, (i32, i32)>,
     charmap: HashMap<char, Vec<Keycode>>,
     key_event_queue: VecDeque<(KeyEvent, Keycode)>,
     next_key_event_at: u32,
-    event_pump: EventPump,
+    event_pump: Rc<RefCell<EventPump>>,
     retval: bool,
-    renderer: WindowCanvas,
+    renderer: &'a mut WindowCanvas,
+    texture: Rc<RefCell<Texture<'a>>>,
+    // texture_creator: TextureCreator<WindowContext>,
     frame: Vec<u32>,
+    cols: u32,
+    rows: u32,
+    color_palette: [u32; 16],
+    prev_frame_was_at: Instant,
 }
 
 enum KeyEvent {
@@ -28,27 +40,39 @@ enum KeyEvent {
 
 impl<'a> IO<'a> {
     pub const WAIT_DURATION: u32 = 18000;
-    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>) -> Result<Self, String> {
-        let sdl_context = sdl2::init()?;
-        let video_subsystem = sdl_context.video()?;
+    pub fn new(
+        cpu: Rc<RefCell<Cpu>>,
+        renderer: &'a mut WindowCanvas,
+        texture: Rc<RefCell<Texture<'a>>>,
+        event_pump: Rc<RefCell<EventPump>>,
+    ) -> Result<Self, String> {
+        // let sdl_context = sdl2::init()?;
+        // let video_subsystem = sdl_context.video()?;
 
-        let window = video_subsystem
-            .window("Commodore C64", 800, 600)
-            .position_centered()
-            .opengl()
-            .build()
-            .map_err(|e| e.to_string())?;
+        // let cols = Vic::VISIBLE_SCREEN_WIDTH;
+        // let rows = Vic::VISIBLE_SCREEN_HEIGHT;
+        // let window = video_subsystem
+        //     .window("Commodore C64", 800, 600)
+        //     .position_centered()
+        //     .opengl()
+        //     .build()
+        //     .map_err(|e| e.to_string())?;
 
-        let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-        // TODO: get these values from VIC-II
-        let cols = 80;
-        let rows = 25;
-        let frame: Vec<u32> = vec![0; cols * rows];
+        // let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+        // let texture_creator = canvas.texture_creator();
+
+        // let surface =
+        //     Surface::new(cols, rows, PixelFormatEnum::ABGR8888).map_err(|e| e.to_string())?;
+        // let texture = Texture::from_surface(&surface, &canvas.texture_creator())
+        //     .map_err(|e| e.to_string())?;
+        let cols = Vic::VISIBLE_SCREEN_WIDTH;
+        let rows = Vic::VISIBLE_SCREEN_HEIGHT;
+        let frame: Vec<u32> = vec![0; (cols * rows) as usize];
 
         // canvas.set_draw_color(Color::RGB(255, 0, 0));
-        canvas.clear();
-        canvas.present();
-        let event_pump = sdl_context.event_pump()?;
+        // canvas.clear();
+        // canvas.present();
+        // let event_pump = sdl_context.event_pump()?;
         let mut io = IO {
             cpu,
             keyboard_matrix: [0xff; 8],
@@ -58,9 +82,19 @@ impl<'a> IO<'a> {
             next_key_event_at: 0,
             event_pump,
             retval: true,
-            renderer: canvas,
+            renderer,
             frame,
+            cols,
+            rows,
+            color_palette: [0; 16],
+            texture,
+            // texture_creator,
+            prev_frame_was_at: Instant::now(),
         };
+
+        // let texture =
+        //     Texture::from_surface(&surface, &io.texture_creator).map_err(|e| e.to_string())?;
+        // io.texture = Some(texture);
 
         // Initilize charmap
         io.charmap.insert('A', vec![Keycode::A]);
@@ -217,7 +251,7 @@ impl<'a> IO<'a> {
     }
 
     pub fn process_events(&mut self) {
-        let events: Vec<sdl2::event::Event> = self.event_pump.poll_iter().collect();
+        let events: Vec<sdl2::event::Event> = self.event_pump.borrow_mut().poll_iter().collect();
 
         for event in events {
             match event {
@@ -252,22 +286,49 @@ impl<'a> IO<'a> {
         self.retval
     }
 
-    fn screen_update_pixel(&mut self, x: i32, y: i32, color: u32) {
-        // Implementation for updating a single pixel
+    fn screen_update_pixel(&mut self, x: u32, y: u32, color: u32) {
+        self.frame[(y * self.cols + x) as usize] = self.color_palette[(color & 0xf) as usize];
     }
 
-    fn screen_draw_rect(&mut self, x: i32, y: i32, n: i32, color: u32) {
-        // Implementation for drawing a rectangle
+    fn screen_draw_rect(&mut self, x: u32, y: u32, n: u32, color: u32) {
+        for i in 0..n {
+            self.screen_update_pixel(x + i, y, color);
+        }
     }
 
-    fn screen_draw_border(&mut self, y: i32, color: u32) {
-        // Implementation for drawing a border
+    fn screen_draw_border(&mut self, y: u32, color: u32) {
+        self.screen_draw_rect(0, y, self.cols, color);
     }
 
     fn screen_refresh(&mut self) {
-        // Clear the renderer, copy texture, and present
+        self.texture
+            .borrow_mut()
+            .update(
+                None,
+                cast_slice(&self.frame),
+                self.cols as usize * std::mem::size_of::<u32>(),
+            )
+            .unwrap();
         self.renderer.clear();
-        // Additional rendering operations...
+        self.renderer
+            .copy(&self.texture.borrow(), None, None)
+            .unwrap();
         self.renderer.present();
+
+        self.process_events();
+        self.vsync();
+    }
+
+    fn vsync(&mut self) {
+        const VIC_REFRESH_RATE: f64 = 60.0; // Assuming 60 Hz, replace with actual value
+        let rr = Duration::from_secs_f64(1.0 / VIC_REFRESH_RATE);
+
+        let t = Instant::now().duration_since(self.prev_frame_was_at);
+        if rr > t {
+            let ttw = rr - t;
+            thread::sleep(ttw);
+        }
+
+        self.prev_frame_was_at = Instant::now();
     }
 }
