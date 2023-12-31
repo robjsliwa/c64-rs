@@ -2,11 +2,8 @@ use super::cpu::Cpu;
 use super::vic::Vic;
 use bytemuck::cast_slice;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::PixelFormatEnum;
-use sdl2::render::{Texture, TextureCreator, WindowCanvas};
-use sdl2::surface::Surface;
-use sdl2::video::WindowContext;
-use sdl2::{event, EventPump};
+use sdl2::render::{Texture, WindowCanvas};
+use sdl2::EventPump;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
@@ -25,7 +22,6 @@ pub struct IO<'a> {
     retval: bool,
     renderer: &'a mut WindowCanvas,
     texture: Rc<RefCell<Texture<'a>>>,
-    // texture_creator: TextureCreator<WindowContext>,
     frame: Vec<u32>,
     cols: u32,
     rows: u32,
@@ -46,33 +42,10 @@ impl<'a> IO<'a> {
         texture: Rc<RefCell<Texture<'a>>>,
         event_pump: Rc<RefCell<EventPump>>,
     ) -> Result<Self, String> {
-        // let sdl_context = sdl2::init()?;
-        // let video_subsystem = sdl_context.video()?;
-
-        // let cols = Vic::VISIBLE_SCREEN_WIDTH;
-        // let rows = Vic::VISIBLE_SCREEN_HEIGHT;
-        // let window = video_subsystem
-        //     .window("Commodore C64", 800, 600)
-        //     .position_centered()
-        //     .opengl()
-        //     .build()
-        //     .map_err(|e| e.to_string())?;
-
-        // let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-        // let texture_creator = canvas.texture_creator();
-
-        // let surface =
-        //     Surface::new(cols, rows, PixelFormatEnum::ABGR8888).map_err(|e| e.to_string())?;
-        // let texture = Texture::from_surface(&surface, &canvas.texture_creator())
-        //     .map_err(|e| e.to_string())?;
         let cols = Vic::VISIBLE_SCREEN_WIDTH;
         let rows = Vic::VISIBLE_SCREEN_HEIGHT;
         let frame: Vec<u32> = vec![0; (cols * rows) as usize];
 
-        // canvas.set_draw_color(Color::RGB(255, 0, 0));
-        // canvas.clear();
-        // canvas.present();
-        // let event_pump = sdl_context.event_pump()?;
         let mut io = IO {
             cpu,
             keyboard_matrix: [0xff; 8],
@@ -88,13 +61,8 @@ impl<'a> IO<'a> {
             rows,
             color_palette: [0; 16],
             texture,
-            // texture_creator,
             prev_frame_was_at: Instant::now(),
         };
-
-        // let texture =
-        //     Texture::from_surface(&surface, &io.texture_creator).map_err(|e| e.to_string())?;
-        // io.texture = Some(texture);
 
         // Initilize charmap
         io.charmap.insert('A', vec![Keycode::A]);

@@ -133,7 +133,7 @@ impl Memory {
             }
         } else if page == Self::ADDR_CIA1_PAGE {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                // cia1.write_register(addr&0x0f, value);
+                // cia1.write_register(addr & 0x0f, value);
                 todo!();
             } else {
                 self.mem_ram[addr as usize] = value;
