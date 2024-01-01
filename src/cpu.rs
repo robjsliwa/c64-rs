@@ -62,7 +62,7 @@ impl<'a> Cpu<'a> {
     pub fn step(&mut self) -> bool {
         let mut retval: bool = true;
         let opcode = self.memory.borrow().read_byte(self.pc);
-        // println!("PC: {:04X} OP: {:02X}", self.pc, opcode);
+        println!("PC: {:04X} OP: {:02X}", self.pc, opcode);
         self.pc += 1;
 
         match opcode {

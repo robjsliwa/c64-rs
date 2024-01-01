@@ -286,6 +286,19 @@ impl<'a> Memory<'a> {
         self.write_byte(addr + 1, msb);
     }
 
+    pub fn vic_read_byte(&self, addr: u16) -> u8 {
+        let vic_addr =
+            self.cia2.as_ref().unwrap().borrow_mut().vic_base_address() + (addr & 0x3fff) as u16;
+        let v = if (vic_addr >= 0x1000 && vic_addr < 0x2000)
+            || (vic_addr >= 0x9000 && vic_addr < 0xa000)
+        {
+            self.mem_rom[Memory::BASE_ADDR_CHARS as usize + (vic_addr & 0xfff) as usize]
+        } else {
+            self.read_byte_no_io(vic_addr)
+        };
+        v
+    }
+
     pub fn load_rom(&mut self, filename: &str, baseaddr: u16) -> io::Result<()> {
         let path = Path::new("./assets/roms/").join(filename);
         let mut file = File::open(path)?;

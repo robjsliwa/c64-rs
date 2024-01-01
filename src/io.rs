@@ -254,21 +254,21 @@ impl<'a> IO<'a> {
         self.retval
     }
 
-    fn screen_update_pixel(&mut self, x: u32, y: u32, color: u32) {
+    pub fn screen_update_pixel(&mut self, x: u32, y: u32, color: u32) {
         self.frame[(y * self.cols + x) as usize] = self.color_palette[(color & 0xf) as usize];
     }
 
-    fn screen_draw_rect(&mut self, x: u32, y: u32, n: u32, color: u32) {
+    pub fn screen_draw_rect(&mut self, x: u32, y: u32, n: u32, color: u32) {
         for i in 0..n {
             self.screen_update_pixel(x + i, y, color);
         }
     }
 
-    fn screen_draw_border(&mut self, y: u32, color: u32) {
+    pub fn screen_draw_border(&mut self, y: u32, color: u32) {
         self.screen_draw_rect(0, y, self.cols, color);
     }
 
-    fn screen_refresh(&mut self) {
+    pub fn screen_refresh(&mut self) {
         self.texture
             .borrow_mut()
             .update(

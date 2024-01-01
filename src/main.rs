@@ -4,13 +4,10 @@ use crate::cpu::Cpu;
 use crate::io::IO;
 use crate::memory::Memory;
 use crate::vic::Vic;
-use bytemuck::cast_slice;
 use clap::{command, Command};
-use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
-use sdl2::render::{Texture, TextureCreator, WindowCanvas};
+use sdl2::render::Texture;
 use sdl2::surface::Surface;
-use sdl2::video::WindowContext;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -136,6 +133,7 @@ fn run_c64(
     cia1: Rc<RefCell<Cia1>>,
     cia2: Rc<RefCell<Cia2>>,
     io: Rc<RefCell<IO>>,
+    vic: Rc<RefCell<Vic>>,
 ) {
     loop {
         if !cia1.borrow_mut().step() {
@@ -147,6 +145,10 @@ fn run_c64(
         }
 
         if !cpu.borrow_mut().step() {
+            break;
+        }
+
+        if !vic.borrow_mut().step() {
             break;
         }
 
@@ -186,6 +188,7 @@ fn main() -> Result<(), String> {
         Rc::new(RefCell::new(texture)),
         Rc::new(RefCell::new(event_pump)),
     )?));
+    let vic = Rc::new(RefCell::new(Vic::new(mem.clone(), cpu.clone(), io.clone())));
     let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
     let cia2 = Rc::new(RefCell::new(Cia2::new(cpu.clone())));
     mem.borrow_mut().set_cia1(cia1.clone());
@@ -207,7 +210,7 @@ fn main() -> Result<(), String> {
             test_cpu(cpu);
             return Ok(());
         }
-        _ => run_c64(cpu, cia1, cia2, io),
+        _ => run_c64(cpu, cia1, cia2, io, vic),
     }
 
     Ok(())
