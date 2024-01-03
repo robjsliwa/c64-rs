@@ -135,6 +135,7 @@ fn run_c64(
     io: Rc<RefCell<IO>>,
     vic: Rc<RefCell<Vic>>,
 ) {
+    cpu.borrow_mut().pc = 0x0000; //0xfce2;
     loop {
         if !cia1.borrow_mut().step() {
             break;
@@ -191,6 +192,7 @@ fn main() -> Result<(), String> {
     let vic = Rc::new(RefCell::new(Vic::new(mem.clone(), cpu.clone(), io.clone())));
     let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
     let cia2 = Rc::new(RefCell::new(Cia2::new(cpu.clone())));
+    mem.borrow_mut().set_vic(vic.clone());
     mem.borrow_mut().set_cia1(cia1.clone());
     mem.borrow_mut().set_cia2(cia2.clone());
 

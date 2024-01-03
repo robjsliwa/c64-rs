@@ -782,6 +782,7 @@ impl<'a> Cpu<'a> {
     // LDX: Load X Register
     fn op_ldx(&mut self, value: u8, cycles: u32) {
         self.x = value;
+        println!("LDX: value: {:02X}", value);
         self.update_zero_negative_flags(self.x);
         self.tick(cycles);
     }
@@ -820,7 +821,11 @@ impl<'a> Cpu<'a> {
     // ---- Branching Instructions ----
     // BEQ: Branch if Equal (Zero flag is set)
     fn op_beq(&mut self) {
-        let addr: u16 = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8 as u16;
+        println!("BEQ: offset: {:04X}", offset);
+        let addr = self.pc.wrapping_add(offset);
+        println!("BEQ: addr: {:04X}", addr);
+        println!("zero: {}", self.zero);
         if self.zero {
             self.branch(addr);
         }
@@ -829,7 +834,8 @@ impl<'a> Cpu<'a> {
 
     // BNE: Branch if Not Equal (Zero flag is clear)
     fn op_bne(&mut self) {
-        let addr: u16 = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8 as u16;
+        let addr = self.pc.wrapping_add(offset);
         if !self.zero {
             self.branch(addr);
         }
@@ -1130,6 +1136,7 @@ impl<'a> Cpu<'a> {
 
     fn op_dex(&mut self) {
         self.x = self.x.wrapping_sub(1);
+        println!("X: {}", self.x);
         self.update_zero_negative_flags(self.x);
         self.tick(2);
     }

@@ -1,5 +1,6 @@
 use super::cia1::Cia1;
 use super::cia2::Cia2;
+use super::vic::Vic;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, Read};
@@ -57,10 +58,10 @@ impl Banks {
 }
 
 pub struct Memory<'a> {
-    mem_ram: Vec<u8>, // RAM buffer
-    mem_rom: Vec<u8>, // ROM buffer
-    banks: [u8; 7],   // Memory bank configurations
-    // vic: Option<*mut Vic>, // Using raw pointers for external device references
+    mem_ram: Vec<u8>,                    // RAM buffer
+    mem_rom: Vec<u8>,                    // ROM buffer
+    banks: [u8; 7],                      // Memory bank configurations
+    vic: Option<Rc<RefCell<Vic<'a>>>>,   // cia1: Option<*mut Vic>,
     cia1: Option<Rc<RefCell<Cia1<'a>>>>, // cia1: Option<*mut Cia1>,
     cia2: Option<Rc<RefCell<Cia2<'a>>>>, // cia2: Option<*mut Cia2>,
                                          // sid: Option<*mut Sid>,
@@ -103,6 +104,7 @@ impl<'a> Memory<'a> {
             mem_ram,
             mem_rom,
             banks,
+            vic: None,
             cia1: None,
             cia2: None,
         };
@@ -120,6 +122,10 @@ impl<'a> Memory<'a> {
 
     pub fn set_cia2(&mut self, cia2: Rc<RefCell<Cia2<'a>>>) {
         self.cia2 = Some(cia2);
+    }
+
+    pub fn set_vic(&mut self, vic: Rc<RefCell<Vic<'a>>>) {
+        self.vic = Some(vic);
     }
 
     // Writes a byte to RAM without performing I/O
@@ -140,8 +146,11 @@ impl<'a> Memory<'a> {
             }
         } else if page >= Self::ADDR_VIC_FIRST_PAGE && addr <= Self::ADDR_VIC_LAST_PAGE {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                // vic.write_register(addr&0x7f, value);
-                todo!();
+                self.vic
+                    .as_ref()
+                    .unwrap()
+                    .borrow_mut()
+                    .write_register((addr & 0x7f).try_into().unwrap(), value)
             } else {
                 self.mem_ram[addr as usize] = value;
             }
@@ -181,8 +190,11 @@ impl<'a> Memory<'a> {
                 //     _ => self.mem_ram[addr as usize],
                 // }
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                    // self.vic.read_register(addr & 0x7f)
-                    todo!();
+                    self.vic
+                        .as_ref()
+                        .unwrap()
+                        .borrow_mut()
+                        .read_register((addr & 0x7f).try_into().unwrap())
                 } else if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Rom.as_u8() {
                     self.mem_rom[addr as usize]
                 } else {
