@@ -41,3 +41,7 @@ impl RunMode {
         }
     }
 }
+
+pub(crate) fn is_bit_set(v: u8, b: u8) -> bool {
+    (v & (1 << b)) != 0
+}

@@ -135,7 +135,6 @@ fn run_c64(
     io: Rc<RefCell<IO>>,
     vic: Rc<RefCell<Vic>>,
 ) {
-    cpu.borrow_mut().pc = 0x0000; //0xfce2;
     loop {
         if !cia1.borrow_mut().step() {
             break;
