@@ -64,160 +64,491 @@ impl<'a> Cpu<'a> {
 
         match opcode {
             0x00 => self.brk(),
-            0x01 => self.ora(self.load_byte(self.addr_indx()), 6),
+            0x01 => {
+                let addr = self.addr_indx();
+                self.ora(self.load_byte(addr), 6)
+            }
             0x05 => {
                 let addr = self.addr_zero();
                 let byte = self.load_byte(addr);
                 self.ora(byte, 3)
             }
-            0x06 => self.asl_mem(self.addr_zero(), 5),
+            0x06 => {
+                let addr = self.addr_zero();
+                self.asl_mem(addr, 5)
+            }
             0x08 => self.php(),
-            0x09 => self.ora(self.fetch_op(), 2),
+            0x09 => {
+                let byte = self.fetch_op();
+                self.ora(byte, 2)
+            }
             0x0A => self.asl_a(),
-            0x0D => self.ora(self.load_byte(self.addr_abs()), 4),
-            0x0E => self.asl_mem(self.addr_abs(), 6),
+            0x0D => {
+                let addr = self.addr_abs();
+                let byte = self.load_byte(addr);
+                self.ora(byte, 4)
+            }
+            0x0E => {
+                let addr = self.addr_abs();
+                self.asl_mem(addr, 6)
+            }
             0x10 => self.bpl(),
-            0x11 => self.ora(self.load_byte(self.addr_indy()), 5),
-            0x15 => self.ora(self.load_byte(self.addr_zerox()), 4),
-            0x16 => self.asl_mem(self.addr_zerox(), 6),
+            0x11 => {
+                let addr = self.addr_indy();
+                self.ora(self.load_byte(addr), 5)
+            }
+            0x15 => {
+                let addr = self.addr_zerox();
+                self.ora(self.load_byte(addr), 4)
+            }
+            0x16 => {
+                let addr = self.addr_zerox();
+                self.asl_mem(addr, 6)
+            }
             0x18 => self.clc(),
-            0x19 => self.ora(self.load_byte(self.addr_absy()), 4),
-            0x1D => self.ora(self.load_byte(self.addr_absx()), 4),
-            0x1E => self.asl_mem(self.addr_absx(), 7),
+            0x19 => {
+                let addr = self.addr_absy();
+                self.ora(self.load_byte(addr), 4)
+            }
+            0x1D => {
+                let addr = self.addr_absx();
+                self.ora(self.load_byte(addr), 4)
+            }
+            0x1E => {
+                let addr = self.addr_absx();
+                self.asl_mem(addr, 7)
+            }
             0x20 => self.jsr(),
-            0x21 => self.and(self.load_byte(self.addr_indx()), 6),
-            0x24 => self.bit(self.addr_zero(), 3),
-            0x25 => self.and(self.load_byte(self.addr_zero()), 3),
-            0x26 => self.rol_mem(self.addr_zero(), 5),
+            0x21 => {
+                let addr = self.addr_indx();
+                self.and(self.load_byte(addr), 6)
+            }
+            0x24 => {
+                let addr = self.addr_zero();
+                self.bit(addr, 3)
+            }
+            0x25 => {
+                let addr = self.addr_zero();
+                self.and(self.load_byte(addr), 3)
+            }
+            0x26 => {
+                let addr = self.addr_zero();
+                self.rol_mem(addr, 5)
+            }
             0x28 => self.plp(),
-            0x29 => self.and(self.fetch_op(), 2),
+            0x29 => {
+                let byte = self.fetch_op();
+                self.and(byte, 2)
+            }
             0x2A => self.rol_a(),
-            0x2C => self.bit(self.addr_abs(), 4),
-            0x2D => self.and(self.load_byte(self.addr_abs()), 4),
-            0x2E => self.rol_mem(self.addr_abs(), 6),
+            0x2C => {
+                let addr = self.addr_abs();
+                self.bit(addr, 4)
+            }
+            0x2D => {
+                let addr = self.addr_abs();
+                self.and(self.load_byte(addr), 4)
+            }
+            0x2E => {
+                let addr = self.addr_abs();
+                self.rol_mem(addr, 6)
+            }
             0x30 => self.bmi(),
-            0x31 => self.and(self.load_byte(self.addr_indy()), 5),
-            0x35 => self.and(self.load_byte(self.addr_zerox()), 4),
-            0x36 => self.rol_mem(self.addr_zerox(), 6),
+            0x31 => {
+                let addr = self.addr_indy();
+                self.and(self.load_byte(addr), 5)
+            }
+            0x35 => {
+                let addr = self.addr_zerox();
+                self.and(self.load_byte(addr), 4)
+            }
+            0x36 => {
+                let addr = self.addr_zerox();
+                self.rol_mem(addr, 6)
+            }
             0x38 => self.sec(),
-            0x39 => self.and(self.load_byte(self.addr_absy()), 4),
-            0x3D => self.and(self.load_byte(self.addr_absx()), 4),
-            0x3E => self.rol_mem(self.addr_absx(), 7),
+            0x39 => {
+                let addr = self.addr_absy();
+                self.and(self.load_byte(addr), 4)
+            }
+            0x3D => {
+                let addr = self.addr_absx();
+                self.and(self.load_byte(addr), 4)
+            }
+            0x3E => {
+                let addr = self.addr_absx();
+                self.rol_mem(addr, 7)
+            }
             0x40 => self.rti(),
-            0x41 => self.eor(self.load_byte(self.addr_indx()), 6),
-            0x45 => self.eor(self.load_byte(self.addr_zero()), 3),
-            0x46 => self.lsr_mem(self.addr_zero(), 5),
+            0x41 => {
+                let addr = self.addr_indx();
+                self.eor(self.load_byte(addr), 6)
+            }
+            0x45 => {
+                let addr = self.addr_zero();
+                self.eor(self.load_byte(addr), 3)
+            }
+            0x46 => {
+                let addr = self.addr_zero();
+                self.lsr_mem(addr, 5)
+            }
             0x48 => self.pha(),
-            0x49 => self.eor(self.fetch_op(), 2),
+            0x49 => {
+                let byte = self.fetch_op();
+                self.eor(byte, 2)
+            }
             0x4A => self.lsr_a(),
             0x4C => self.jmp(),
-            0x4D => self.eor(self.load_byte(self.addr_abs()), 4),
-            0x4E => self.lsr_mem(self.addr_abs(), 6),
+            0x4D => {
+                let addr = self.addr_abs();
+                self.eor(self.load_byte(addr), 4)
+            }
+            0x4E => {
+                let addr = self.addr_abs();
+                self.lsr_mem(addr, 6)
+            }
             0x50 => self.bvc(),
-            0x51 => self.eor(self.load_byte(self.addr_indy()), 5),
-            0x55 => self.eor(self.load_byte(self.addr_zerox()), 4),
-            0x56 => self.lsr_mem(self.addr_zerox(), 6),
+            0x51 => {
+                let addr = self.addr_indy();
+                self.eor(self.load_byte(addr), 5)
+            }
+            0x55 => {
+                let addr = self.addr_zerox();
+                self.eor(self.load_byte(addr), 4)
+            }
+            0x56 => {
+                let addr = self.addr_zerox();
+                self.lsr_mem(addr, 6)
+            }
             0x58 => self.cli(),
-            0x59 => self.eor(self.load_byte(self.addr_absy()), 4),
-            0x5D => self.eor(self.load_byte(self.addr_absx()), 4),
-            0x5E => self.lsr_mem(self.addr_absx(), 7),
+            0x59 => {
+                let addr = self.addr_absy();
+                self.eor(self.load_byte(addr), 4)
+            }
+            0x5D => {
+                let addr = self.addr_absx();
+                self.eor(self.load_byte(addr), 4)
+            }
+            0x5E => {
+                let addr = self.addr_absx();
+                self.lsr_mem(addr, 7)
+            }
             0x60 => self.rts(),
-            0x61 => self.adc(self.load_byte(self.addr_indx()), 6),
-            0x65 => self.adc(self.load_byte(self.addr_zero()), 3),
-            0x66 => self.ror_mem(self.addr_zero(), 5),
+            0x61 => {
+                let addr = self.addr_indx();
+                self.adc(self.load_byte(addr), 6)
+            }
+            0x65 => {
+                let addr = self.addr_zero();
+                self.adc(self.load_byte(addr), 3)
+            }
+            0x66 => {
+                let addr = self.addr_zero();
+                self.ror_mem(addr, 5)
+            }
             0x68 => self.pla(),
-            0x69 => self.adc(self.fetch_op(), 2),
+            0x69 => {
+                let byte = self.fetch_op();
+                self.adc(byte, 2)
+            }
             0x6A => self.ror_a(),
             0x6C => self.jmp_ind(),
-            0x6D => self.adc(self.load_byte(self.addr_abs()), 4),
-            0x6E => self.ror_mem(self.addr_abs(), 6),
+            0x6D => {
+                let addr = self.addr_abs();
+                self.adc(self.load_byte(addr), 4)
+            }
+            0x6E => {
+                let addr = self.addr_abs();
+                self.ror_mem(addr, 6)
+            }
             0x70 => self.bvs(),
-            0x71 => self.adc(self.load_byte(self.addr_indy()), 5),
-            0x75 => self.adc(self.load_byte(self.addr_zerox()), 4),
-            0x76 => self.ror_mem(self.addr_zerox(), 6),
+            0x71 => {
+                let addr = self.addr_indy();
+                self.adc(self.load_byte(addr), 5)
+            }
+            0x75 => {
+                let addr = self.addr_zerox();
+                self.adc(self.load_byte(addr), 4)
+            }
+            0x76 => {
+                let addr = self.addr_zerox();
+                self.ror_mem(addr, 6)
+            }
             0x78 => self.sei(),
-            0x79 => self.adc(self.load_byte(self.addr_absy()), 4),
-            0x7D => self.adc(self.load_byte(self.addr_absx()), 4),
-            0x7E => self.ror_mem(self.addr_absx(), 7),
-            0x81 => self.sta(self.addr_indx(), 6),
-            0x84 => self.sty(self.addr_zero(), 3),
-            0x85 => self.sta(self.addr_zero(), 3),
-            0x86 => self.stx(self.addr_zero(), 3),
+            0x79 => {
+                let addr = self.addr_absy();
+                self.adc(self.load_byte(addr), 4)
+            }
+            0x7D => {
+                let addr = self.addr_absx();
+                self.adc(self.load_byte(addr), 4)
+            }
+            0x7E => {
+                let addr = self.addr_absx();
+                self.ror_mem(addr, 7)
+            }
+            0x81 => {
+                let addr = self.addr_indx();
+                self.sta(addr, 6)
+            }
+            0x84 => {
+                let addr = self.addr_zero();
+                self.sty(addr, 3)
+            }
+            0x85 => {
+                let addr = self.addr_zero();
+                self.sta(addr, 3)
+            }
+            0x86 => {
+                let addr = self.addr_zero();
+                self.stx(addr, 3)
+            }
             0x88 => self.dey(),
             0x8A => self.txa(),
-            0x8C => self.sty(self.addr_abs(), 4),
-            0x8D => self.sta(self.addr_abs(), 4),
-            0x8E => self.stx(self.addr_abs(), 4),
+            0x8C => {
+                let addr = self.addr_abs();
+                self.sty(addr, 4)
+            }
+            0x8D => {
+                let addr = self.addr_abs();
+                self.sta(addr, 4)
+            }
+            0x8E => {
+                let addr = self.addr_abs();
+                self.stx(addr, 4)
+            }
             0x90 => self.bcc(),
-            0x91 => self.sta(self.addr_indy(), 6),
-            0x94 => self.sty(self.addr_zerox(), 4),
-            0x95 => self.sta(self.addr_zerox(), 4),
-            0x96 => self.stx(self.addr_zeroy(), 4),
+            0x91 => {
+                let addr = self.addr_indy();
+                self.sta(addr, 6)
+            }
+            0x94 => {
+                let addr = self.addr_zerox();
+                self.sty(addr, 4)
+            }
+            0x95 => {
+                let addr = self.addr_zerox();
+                self.sta(addr, 4)
+            }
+            0x96 => {
+                let addr = self.addr_zeroy();
+                self.stx(addr, 4)
+            }
             0x98 => self.tya(),
-            0x99 => self.sta(self.addr_absy(), 5),
+            0x99 => {
+                let addr = self.addr_absy();
+                self.sta(addr, 5)
+            }
             0x9A => self.txs(),
-            0x9D => self.sta(self.addr_absx(), 5),
-            0xA0 => self.ldy(self.fetch_op(), 2),
-            0xA1 => self.lda(self.load_byte(self.addr_indx()), 6),
-            0xA2 => self.ldx(self.fetch_op(), 2),
-            0xA4 => self.ldy(self.load_byte(self.addr_zero()), 3),
-            0xA5 => self.lda(self.load_byte(self.addr_zero()), 3),
-            0xA6 => self.ldx(self.load_byte(self.addr_zero()), 3),
+            0x9D => {
+                let addr = self.addr_absx();
+                self.sta(addr, 5)
+            }
+            0xA0 => {
+                let byte = self.fetch_op();
+                self.ldy(byte, 2)
+            }
+            0xA1 => {
+                let addr = self.addr_indx();
+                self.lda(self.load_byte(addr), 6)
+            }
+            0xA2 => {
+                let byte = self.fetch_op();
+                self.ldx(byte, 2)
+            }
+            0xA4 => {
+                let addr = self.addr_zero();
+                self.ldy(self.load_byte(addr), 3)
+            }
+            0xA5 => {
+                let addr = self.addr_zero();
+                self.lda(self.load_byte(addr), 3)
+            }
+            0xA6 => {
+                let addr = self.addr_zero();
+                self.ldx(self.load_byte(addr), 3)
+            }
             0xA8 => self.tay(),
-            0xA9 => self.lda(self.fetch_op(), 2),
+            0xA9 => {
+                let byte = self.fetch_op();
+                self.lda(byte, 2)
+            }
             0xAA => self.tax(),
-            0xAC => self.ldy(self.load_byte(self.addr_abs()), 4),
-            0xAD => self.lda(self.load_byte(self.addr_abs()), 4),
-            0xAE => self.ldx(self.load_byte(self.addr_abs()), 4),
+            0xAC => {
+                let addr = self.addr_abs();
+                self.ldy(self.load_byte(addr), 4)
+            }
+            0xAD => {
+                let addr = self.addr_abs();
+                self.lda(self.load_byte(addr), 4)
+            }
+            0xAE => {
+                let addr = self.addr_abs();
+                self.ldx(self.load_byte(addr), 4)
+            }
             0xB0 => self.bcs(),
-            0xB1 => self.lda(self.load_byte(self.addr_indy()), 5),
-            0xB4 => self.ldy(self.load_byte(self.addr_zerox()), 3),
-            0xB5 => self.lda(self.load_byte(self.addr_zerox()), 3),
-            0xB6 => self.ldx(self.load_byte(self.addr_zeroy()), 3),
+            0xB1 => {
+                let addr = self.addr_indy();
+                self.lda(self.load_byte(addr), 5)
+            }
+            0xB4 => {
+                let addr = self.addr_zerox();
+                self.ldy(self.load_byte(addr), 3)
+            }
+            0xB5 => {
+                let addr = self.addr_zerox();
+                self.lda(self.load_byte(addr), 3)
+            }
+            0xB6 => {
+                let addr = self.addr_zeroy();
+                self.ldx(self.load_byte(addr), 3)
+            }
             0xB8 => self.clv(),
-            0xB9 => self.lda(self.load_byte(self.addr_absy()), 4),
+            0xB9 => {
+                let addr = self.addr_absy();
+                self.lda(self.load_byte(addr), 4)
+            }
             0xBA => self.tsx(),
-            0xBC => self.ldy(self.load_byte(self.addr_absx()), 4),
-            0xBD => self.lda(self.load_byte(self.addr_absx()), 4),
-            0xBE => self.ldx(self.load_byte(self.addr_absy()), 4),
-            0xC0 => self.cpy(self.fetch_op(), 2),
-            0xC1 => self.cmp(self.load_byte(self.addr_indx()), 6),
-            0xC4 => self.cpy(self.load_byte(self.addr_zero()), 3),
-            0xC5 => self.cmp(self.load_byte(self.addr_zero()), 3),
-            0xC6 => self.dec(self.addr_zero(), 5),
+            0xBC => {
+                let addr = self.addr_absx();
+                self.ldy(self.load_byte(addr), 4)
+            }
+            0xBD => {
+                let addr = self.addr_absx();
+                self.lda(self.load_byte(addr), 4)
+            }
+            0xBE => {
+                let addr = self.addr_absy();
+                self.ldx(self.load_byte(addr), 4)
+            }
+            0xC0 => {
+                let byte = self.fetch_op();
+                self.cpy(byte, 2)
+            }
+            0xC1 => {
+                let addr = self.addr_indx();
+                self.cmp(self.load_byte(addr), 6)
+            }
+            0xC4 => {
+                let addr = self.addr_zero();
+                self.cpy(self.load_byte(addr), 3)
+            }
+            0xC5 => {
+                let addr = self.addr_zero();
+                self.cmp(self.load_byte(addr), 3)
+            }
+            0xC6 => {
+                let addr = self.addr_zero();
+                self.dec(addr, 5)
+            }
             0xC8 => self.iny(),
-            0xC9 => self.cmp(self.fetch_op(), 2),
+            0xC9 => {
+                let byte = self.fetch_op();
+                self.cmp(byte, 2)
+            }
             0xCA => self.dex(),
-            0xCC => self.cpy(self.load_byte(self.addr_abs()), 4),
-            0xCD => self.cmp(self.load_byte(self.addr_abs()), 4),
-            0xCE => self.dec(self.addr_abs(), 6),
+            0xCC => {
+                let addr = self.addr_abs();
+                self.cpy(self.load_byte(addr), 4)
+            }
+            0xCD => {
+                let addr = self.addr_abs();
+                self.cmp(self.load_byte(addr), 4)
+            }
+            0xCE => {
+                let addr = self.addr_abs();
+                self.dec(addr, 6)
+            }
             0xD0 => self.bne(),
-            0xD1 => self.cmp(self.load_byte(self.addr_indy()), 5),
-            0xD5 => self.cmp(self.load_byte(self.addr_zerox()), 4),
-            0xD6 => self.dec(self.addr_zerox(), 6),
+            0xD1 => {
+                let addr = self.addr_indy();
+                self.cmp(self.load_byte(addr), 5)
+            }
+            0xD5 => {
+                let addr = self.addr_zerox();
+                self.cmp(self.load_byte(addr), 4)
+            }
+            0xD6 => {
+                let addr = self.addr_zerox();
+                self.dec(addr, 6)
+            }
             0xD8 => self.cld(),
-            0xD9 => self.cmp(self.load_byte(self.addr_absy()), 4),
-            0xDD => self.cmp(self.load_byte(self.addr_absx()), 4),
-            0xDE => self.dec(self.addr_absx(), 7),
-            0xE0 => self.cpx(self.fetch_op(), 2),
-            0xE1 => self.sbc(self.load_byte(self.addr_indx()), 6),
-            0xE4 => self.cpx(self.load_byte(self.addr_zero()), 3),
-            0xE5 => self.sbc(self.load_byte(self.addr_zero()), 3),
-            0xE6 => self.inc(self.addr_zero(), 5),
+            0xD9 => {
+                let addr = self.addr_absy();
+                self.cmp(self.load_byte(addr), 4)
+            }
+            0xDD => {
+                let addr = self.addr_absx();
+                self.cmp(self.load_byte(addr), 4)
+            }
+            0xDE => {
+                let addr = self.addr_absx();
+                self.dec(addr, 7)
+            }
+            0xE0 => {
+                let byte = self.fetch_op();
+                self.cpx(byte, 2)
+            }
+            0xE1 => {
+                let addr = self.addr_indx();
+                self.sbc(self.load_byte(addr), 6)
+            }
+            0xE4 => {
+                let addr = self.addr_zero();
+                self.cpx(self.load_byte(addr), 3)
+            }
+            0xE5 => {
+                let addr = self.addr_zero();
+                self.sbc(self.load_byte(addr), 3)
+            }
+            0xE6 => {
+                let addr = self.addr_zero();
+                self.inc(addr, 5)
+            }
             0xE8 => self.inx(),
-            0xE9 => self.sbc(self.fetch_op(), 2),
+            0xE9 => {
+                let byte = self.fetch_op();
+                self.sbc(byte, 2)
+            }
             0xEA => self.nop(),
-            0xEC => self.cpx(self.load_byte(self.addr_abs()), 4),
-            0xED => self.sbc(self.load_byte(self.addr_abs()), 4),
-            0xEE => self.inc(self.addr_abs(), 6),
+            0xEC => {
+                let addr = self.addr_abs();
+                self.cpx(self.load_byte(addr), 4)
+            }
+            0xED => {
+                let addr = self.addr_abs();
+                self.sbc(self.load_byte(addr), 4)
+            }
+            0xEE => {
+                let addr = self.addr_abs();
+                self.inc(addr, 6)
+            }
             0xF0 => self.beq(),
-            0xF1 => self.sbc(self.load_byte(self.addr_indy()), 5),
-            0xF5 => self.sbc(self.load_byte(self.addr_zerox()), 4),
-            0xF6 => self.inc(self.addr_zerox(), 6),
+            0xF1 => {
+                let addr = self.addr_indy();
+                self.sbc(self.load_byte(addr), 5)
+            }
+            0xF5 => {
+                let addr = self.addr_zerox();
+                self.sbc(self.load_byte(addr), 4)
+            }
+            0xF6 => {
+                let addr = self.addr_zerox();
+                self.inc(addr, 6)
+            }
             0xF8 => self.sed(),
-            0xF9 => self.sbc(self.load_byte(self.addr_absy()), 4),
-            0xFD => self.sbc(self.load_byte(self.addr_absx()), 4),
-            0xFE => self.inc(self.addr_absx(), 7),
+            0xF9 => {
+                let addr = self.addr_absy();
+                self.sbc(self.load_byte(addr), 4)
+            }
+            0xFD => {
+                let addr = self.addr_absx();
+                self.sbc(self.load_byte(addr), 4)
+            }
+            0xFE => {
+                let addr = self.addr_absx();
+                self.inc(addr, 7)
+            }
             _ => {
                 println!("Unknown opcode: {:02X}", opcode);
                 retval = false;
@@ -275,17 +606,17 @@ impl<'a> Cpu<'a> {
         self.cycles += v as u32;
     }
 
-    fn addr_indx(&self) -> u16 {
+    fn addr_indx(&mut self) -> u16 {
+        let addr_zero = self.addr_zero();
         let addr = self
             .memory
             .borrow()
-            .read_word((self.addr_zero() + self.x as u16) & 0xff);
+            .read_word((addr_zero + self.x as u16) & 0xff);
         addr
     }
 
     fn addr_zero(&mut self) -> u16 {
-        let addr = self.fetch_op() as u16;
-        addr
+        self.fetch_op() as u16
     }
 
     fn set_zf(&mut self, val: u8) {
@@ -302,24 +633,22 @@ impl<'a> Cpu<'a> {
         retval
     }
 
-    fn addr_indy(&self) -> u16 {
-        let addr = self.memory.borrow().read_word(self.addr_zero()) + self.y as u16;
+    fn addr_indy(&mut self) -> u16 {
+        let addr_zero = self.addr_zero();
+        let addr = self.memory.borrow().read_word(addr_zero) + self.y as u16;
         addr
     }
 
     fn addr_zerox(&mut self) -> u16 {
-        let addr = (self.fetch_op() as u16 + self.x as u16) & 0xff;
-        addr
+        (self.fetch_op() as u16 + self.x as u16) & 0xff
     }
 
     fn addr_absy(&mut self) -> u16 {
-        let addr = self.fetch_opw().wrapping_add(self.y as u16);
-        addr
+        self.fetch_opw().wrapping_add(self.y as u16)
     }
 
     fn addr_absx(&mut self) -> u16 {
-        let addr = self.fetch_opw().wrapping_add(self.x as u16);
-        addr
+        self.fetch_opw().wrapping_add(self.x as u16)
     }
 
     // OP CODES
@@ -344,12 +673,14 @@ impl<'a> Cpu<'a> {
     fn asl_mem(&mut self, addr: u16, cycles: u8) {
         let v = self.load_byte(addr);
         self.memory.borrow_mut().write_byte(addr, v);
-        self.memory.borrow_mut().write_byte(addr, self.asl(v));
+        let asl = self.asl(v);
+        self.memory.borrow_mut().write_byte(addr, asl);
         self.tick(cycles);
     }
 
     fn asl(&mut self, v: u8) -> u8 {
-        let t = (v << 1) & 0xff;
+        // let t = (v << 1) & 0xff;
+        let t = v << 1;
         self.cf = (v & 0x80) != 0;
         self.zf = t == 0;
         self.nf = (t & 0x80) != 0;
@@ -367,8 +698,7 @@ impl<'a> Cpu<'a> {
     }
 
     fn addr_abs(&mut self) -> u16 {
-        let addr = self.fetch_opw();
-        addr
+        self.fetch_opw()
     }
 
     fn bpl(&mut self) {
@@ -423,12 +753,14 @@ impl<'a> Cpu<'a> {
     fn rol_mem(&mut self, addr: u16, cycles: u8) {
         let v = self.load_byte(addr);
         self.memory.borrow_mut().write_byte(addr, v);
-        self.memory.borrow_mut().write_byte(addr, self.rol(v));
+        let rol = self.rol(v);
+        self.memory.borrow_mut().write_byte(addr, rol);
         self.tick(cycles);
     }
 
     fn plp(&mut self) {
-        self.set_flags(self.pop());
+        let pop = self.pop();
+        self.set_flags(pop);
         self.tick(4);
     }
 
@@ -447,7 +779,8 @@ impl<'a> Cpu<'a> {
     }
 
     fn rti(&mut self) {
-        self.set_flags(self.pop());
+        let pop = self.pop();
+        self.set_flags(pop);
         self.pc = self.pop() as u16 + ((self.pop() as u16) << 8);
         self.tick(7);
     }
@@ -475,7 +808,8 @@ impl<'a> Cpu<'a> {
     fn lsr_mem(&mut self, addr: u16, cycles: u8) {
         let v = self.load_byte(addr);
         self.memory.borrow_mut().write_byte(addr, v);
-        self.memory.borrow_mut().write_byte(addr, self.lsr(v));
+        let lsr = self.lsr(v);
+        self.memory.borrow_mut().write_byte(addr, lsr);
         self.tick(cycles);
     }
 
@@ -557,7 +891,8 @@ impl<'a> Cpu<'a> {
     fn ror_mem(&mut self, addr: u16, cycles: u8) {
         let v = self.load_byte(addr);
         self.memory.borrow_mut().write_byte(addr, v);
-        self.memory.borrow_mut().write_byte(addr, self.ror(v));
+        let ror = self.ror(v);
+        self.memory.borrow_mut().write_byte(addr, ror);
         self.tick(cycles);
     }
 
@@ -569,7 +904,8 @@ impl<'a> Cpu<'a> {
     }
 
     fn jmp_ind(&mut self) {
-        let addr = self.memory.borrow().read_word(self.addr_abs());
+        let addr_abs = self.addr_abs();
+        let addr = self.memory.borrow().read_word(addr_abs);
         self.pc = addr;
         self.tick(3);
     }
@@ -658,8 +994,7 @@ impl<'a> Cpu<'a> {
     }
 
     fn addr_zeroy(&mut self) -> u16 {
-        let addr = (self.fetch_op() as u16 + self.y as u16) & 0xff;
-        addr
+        (self.fetch_op() as u16 + self.y as u16) & 0xff
     }
 
     fn lda(&mut self, v: u8, cycles: u8) {
@@ -698,7 +1033,8 @@ impl<'a> Cpu<'a> {
     }
 
     fn cmp(&mut self, v: u8, cycles: u8) {
-        let t = self.a as u16 - v as u16;
+        // let t = self.a as u16 - v as u16;
+        let t = self.a.wrapping_sub(v) as u16;
         self.cf = t < 0x100;
         let t = t as u8;
         self.set_zf(t);
@@ -707,7 +1043,8 @@ impl<'a> Cpu<'a> {
     }
 
     fn cpx(&mut self, v: u8, cycles: u8) {
-        let t = self.x as u16 - v as u16;
+        // let t = self.x as u16 - v as u16;
+        let t = self.x.wrapping_sub(v) as u16;
         self.cf = t < 0x100;
         let t = t as u8;
         self.set_zf(t);
@@ -716,7 +1053,8 @@ impl<'a> Cpu<'a> {
     }
 
     fn cpy(&mut self, v: u8, cycles: u8) {
-        let t = self.y as u16 - v as u16;
+        // let t = self.y as u16 - v as u16;
+        let t = self.y.wrapping_sub(v) as u16;
         self.cf = t < 0x100;
         let t = t as u8;
         self.set_zf(t);
@@ -775,10 +1113,13 @@ impl<'a> Cpu<'a> {
                 t -= 0x60;
             }
         } else {
-            t = self.a as u16 - v as u16 - (if self.cf { 0 } else { 1 });
+            // t = self.a as u16 - v as u16 - (if self.cf { 0 } else { 1 });
+            t = (self.a as u16)
+                .wrapping_sub(v as u16)
+                .wrapping_sub(if self.cf { 0 } else { 1 });
         }
         self.cf = t < 0x100;
-        t = t & 0xff;
+        t &= 0xff;
         self.of = ((self.a ^ t as u8) & 0x80) != 0 && ((self.a ^ v) & 0x80) != 0;
         self.set_zf(t.try_into().unwrap()); // TODO: Check this
         self.set_nf(t.try_into().unwrap());
