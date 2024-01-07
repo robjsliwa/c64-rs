@@ -20,6 +20,8 @@ pub struct Cpu<'a> {
     bcf: bool,
     of: bool,
     nf: bool,
+
+    debug: bool,
 }
 
 impl<'a> Cpu<'a> {
@@ -39,6 +41,7 @@ impl<'a> Cpu<'a> {
             bcf: false,
             of: false,
             nf: false,
+            debug: false,
         }
     }
 
@@ -58,8 +61,185 @@ impl<'a> Cpu<'a> {
         self.cycles = 6;
     }
 
+    pub fn set_debug(&mut self, debug: bool) {
+        self.debug = debug;
+    }
+
+    fn print_memory(&self, addr: u16) -> String {
+        let addr = addr - 1;
+        format!(
+            "Memory at {:#04X}: {:#04X} {:#04X} {:#04X} {:#04X}",
+            addr,
+            self.memory.borrow().read_byte(addr),
+            self.memory.borrow().read_byte(addr + 1),
+            self.memory.borrow().read_byte(addr + 2),
+            self.memory.borrow().read_byte(addr + 3),
+        )
+    }
+
+    fn disassemble(&mut self, opcode: u8) -> String {
+        match opcode {
+            // Add cases for each opcode
+            0x00 => "BRK".to_string(),
+            0x01 => format!("ORA ($44,X) -- {}", self.print_memory(self.pc)),
+            0x05 => format!("ORA $44 -- {}", self.print_memory(self.pc)),
+            0x06 => format!("ASL $44 -- {}", self.print_memory(self.pc)),
+            0x09 => format!("ORA #$44 -- {}", self.print_memory(self.pc)),
+            0x0A => format!("ASL A -- {}", self.print_memory(self.pc)),
+            0x0D => format!("ORA $4400 -- {}", self.print_memory(self.pc)),
+            0x0E => format!("ASL $4400 -- {}", self.print_memory(self.pc)),
+            0x10 => format!("BPL -- {}", self.print_memory(self.pc)),
+            0x11 => format!("ORA ($44),Y -- {}", self.print_memory(self.pc)),
+            0x15 => format!("ORA $44,X -- {}", self.print_memory(self.pc)),
+            0x16 => format!("ASL $44,X -- {}", self.print_memory(self.pc)),
+            0x18 => format!("CLC -- {}", self.print_memory(self.pc)),
+            0x19 => format!("ORA $4400,Y -- {}", self.print_memory(self.pc)),
+            0x1D => format!("ORA $4400,X -- {}", self.print_memory(self.pc)),
+            0x1E => format!("ASL $4400,X -- {}", self.print_memory(self.pc)),
+            0x20 => format!("JSR $5597 -- {}", self.print_memory(self.pc)),
+            0x21 => format!("AND ($44,X) -- {}", self.print_memory(self.pc)),
+            0x24 => format!("BIT $44 -- {}", self.print_memory(self.pc)),
+            0x25 => format!("AND $44 -- {}", self.print_memory(self.pc)),
+            0x26 => format!("ROL $44 -- {}", self.print_memory(self.pc)),
+            0x28 => format!("PLP -- {}", self.print_memory(self.pc)),
+            0x29 => format!("AND #$44 -- {}", self.print_memory(self.pc)),
+            0x2A => format!("ROL A -- {}", self.print_memory(self.pc)),
+            0x2C => format!("BIT $4400 -- {}", self.print_memory(self.pc)),
+            0x2D => format!("AND $4400 -- {}", self.print_memory(self.pc)),
+            0x2E => format!("ROL $4400 -- {}", self.print_memory(self.pc)),
+            0x30 => format!("BMI -- {}", self.print_memory(self.pc)),
+            0x31 => format!("AND ($44),Y -- {}", self.print_memory(self.pc)),
+            0x35 => format!("AND $44,X -- {}", self.print_memory(self.pc)),
+            0x36 => format!("ROL $44,X -- {}", self.print_memory(self.pc)),
+            0x38 => format!("SEC -- {}", self.print_memory(self.pc)),
+            0x39 => format!("AND $4400,Y -- {}", self.print_memory(self.pc)),
+            0x3D => format!("AND $4400,X -- {}", self.print_memory(self.pc)),
+            0x3E => format!("ROL $4400,X -- {}", self.print_memory(self.pc)),
+            0x40 => format!("RTI -- {}", self.print_memory(self.pc)),
+            0x41 => format!("EOR ($44,X) -- {}", self.print_memory(self.pc)),
+            0x45 => format!("EOR $44 -- {}", self.print_memory(self.pc)),
+            0x46 => format!("LSR $44 -- {}", self.print_memory(self.pc)),
+            0x48 => format!("PHA -- {}", self.print_memory(self.pc)),
+            0x49 => format!("EOR #$44 -- {}", self.print_memory(self.pc)),
+            0x4A => format!("LSR A -- {}", self.print_memory(self.pc)),
+            0x4C => format!("JMP $5597 -- {}", self.print_memory(self.pc)),
+            0x4D => format!("EOR $4400 -- {}", self.print_memory(self.pc)),
+            0x4E => format!("LSR $4400 -- {}", self.print_memory(self.pc)),
+            0x50 => format!("BVC -- {}", self.print_memory(self.pc)),
+            0x51 => format!("EOR ($44),Y -- {}", self.print_memory(self.pc)),
+            0x55 => format!("EOR $44,X -- {}", self.print_memory(self.pc)),
+            0x56 => format!("LSR $44,X -- {}", self.print_memory(self.pc)),
+            0x58 => format!("CLI -- {}", self.print_memory(self.pc)),
+            0x59 => format!("EOR $4400,Y -- {}", self.print_memory(self.pc)),
+            0x5D => format!("EOR $4400,X -- {}", self.print_memory(self.pc)),
+            0x5E => format!("LSR $4400,X -- {}", self.print_memory(self.pc)),
+            0x60 => format!("RTS -- {}", self.print_memory(self.pc)),
+            0x61 => format!("ADC ($44,X) -- {}", self.print_memory(self.pc)),
+            0x65 => format!("ADC $44 -- {}", self.print_memory(self.pc)),
+            0x66 => format!("ROR $44 -- {}", self.print_memory(self.pc)),
+            0x68 => format!("PLA -- {}", self.print_memory(self.pc)),
+            0x69 => format!("ADC #$44 -- {}", self.print_memory(self.pc)),
+            0x6A => format!("ROR A -- {}", self.print_memory(self.pc)),
+            0x6C => format!("JMP ($5597) -- {}", self.print_memory(self.pc)),
+            0x6D => format!("ADC $4400 -- {}", self.print_memory(self.pc)),
+            0x6E => format!("ROR $4400 -- {}", self.print_memory(self.pc)),
+            0x70 => format!("BVS -- {}", self.print_memory(self.pc)),
+            0x71 => format!("ADC ($44),Y -- {}", self.print_memory(self.pc)),
+            0x75 => format!("ADC $44,X -- {}", self.print_memory(self.pc)),
+            0x76 => format!("ROR $44,X -- {}", self.print_memory(self.pc)),
+            0x78 => format!("SEI -- {}", self.print_memory(self.pc)),
+            0x79 => format!("ADC $4400,Y -- {}", self.print_memory(self.pc)),
+            0x7D => format!("ADC $4400,X -- {}", self.print_memory(self.pc)),
+            0x7E => format!("ROR $4400,X -- {}", self.print_memory(self.pc)),
+            0x81 => format!("STA ($44,X) -- {}", self.print_memory(self.pc)),
+            0x84 => format!("STY $44 -- {}", self.print_memory(self.pc)),
+            0x85 => format!("STA $44 -- {}", self.print_memory(self.pc)),
+            0x86 => format!("STX $44 -- {}", self.print_memory(self.pc)),
+            0x88 => format!("DEY -- {}", self.print_memory(self.pc)),
+            0x8A => format!("TXA -- {}", self.print_memory(self.pc)),
+            0x8C => format!("STY $4400 -- {}", self.print_memory(self.pc)),
+            0x8D => format!("STA $4400 -- {}", self.print_memory(self.pc)),
+            0x8E => format!("STX $4400 -- {}", self.print_memory(self.pc)),
+            0x90 => format!("BCC -- {}", self.print_memory(self.pc)),
+            0x91 => format!("STA ($44),Y -- {}", self.print_memory(self.pc)),
+            0x94 => format!("STY $44,X -- {}", self.print_memory(self.pc)),
+            0x95 => format!("STA $44,X -- {}", self.print_memory(self.pc)),
+            0x96 => format!("STX $44,Y -- {}", self.print_memory(self.pc)),
+            0x98 => format!("TYA -- {}", self.print_memory(self.pc)),
+            0x99 => format!("STA $4400,Y -- {}", self.print_memory(self.pc)),
+            0x9A => format!("TXS -- {}", self.print_memory(self.pc)),
+            0x9D => format!("STA $4400,X -- {}", self.print_memory(self.pc)),
+            0xA0 => format!("LDY #$44 -- {}", self.print_memory(self.pc)),
+            0xA1 => format!("LDA ($44,X) -- {}", self.print_memory(self.pc)),
+            0xA2 => format!("LDX #$44 -- {}", self.print_memory(self.pc)),
+            0xA4 => format!("LDY $44 -- {}", self.print_memory(self.pc)),
+            0xA5 => format!("LDA $44 -- {}", self.print_memory(self.pc)),
+            0xA6 => format!("LDX $44 -- {}", self.print_memory(self.pc)),
+            0xA8 => format!("TAY -- {}", self.print_memory(self.pc)),
+            0xA9 => format!("LDA #$44 -- {}", self.print_memory(self.pc)),
+            0xAA => format!("TAX -- {}", self.print_memory(self.pc)),
+            0xAC => format!("LDY $4400 -- {}", self.print_memory(self.pc)),
+            0xAD => format!("LDA $4400 -- {}", self.print_memory(self.pc)),
+            0xAE => format!("LDX $4400 -- {}", self.print_memory(self.pc)),
+            0xB0 => format!("BCS -- {}", self.print_memory(self.pc)),
+            0xB1 => format!("LDA ($44),Y -- {}", self.print_memory(self.pc)),
+            0xB4 => format!("LDY $44,X -- {}", self.print_memory(self.pc)),
+            0xB5 => format!("LDA $44,X -- {}", self.print_memory(self.pc)),
+            0xB6 => format!("LDX $44,Y -- {}", self.print_memory(self.pc)),
+            0xB8 => format!("CLV -- {}", self.print_memory(self.pc)),
+            0xB9 => format!("LDA $4400,Y -- {}", self.print_memory(self.pc)),
+            0xBA => format!("TSX -- {}", self.print_memory(self.pc)),
+            0xBC => format!("LDY $4400,X -- {}", self.print_memory(self.pc)),
+            0xBD => format!("LDA $4400,X -- {}", self.print_memory(self.pc)),
+            0xBE => format!("LDX $4400,Y -- {}", self.print_memory(self.pc)),
+            0xC0 => format!("CPY #$44 -- {}", self.print_memory(self.pc)),
+            0xC1 => format!("CMP ($44,X) -- {}", self.print_memory(self.pc)),
+            0xC4 => format!("CPY $44 -- {}", self.print_memory(self.pc)),
+            0xC5 => format!("CMP $44 -- {}", self.print_memory(self.pc)),
+            0xC6 => format!("DEC $44 -- {}", self.print_memory(self.pc)),
+            0xC8 => format!("INY -- {}", self.print_memory(self.pc)),
+            0xC9 => format!("CMP #$44 -- {}", self.print_memory(self.pc)),
+            0xCA => format!("DEX -- {}", self.print_memory(self.pc)),
+            0xCC => format!("CPY $4400 -- {}", self.print_memory(self.pc)),
+            0xCD => format!("CMP $4400 -- {}", self.print_memory(self.pc)),
+            0xCE => format!("DEC $4400 -- {}", self.print_memory(self.pc)),
+            0xD0 => format!("BNE -- {}", self.print_memory(self.pc)),
+            0xD1 => format!("CMP ($44),Y -- {}", self.print_memory(self.pc)),
+            0xD5 => format!("CMP $44,X -- {}", self.print_memory(self.pc)),
+            0xD6 => format!("DEC $44,X -- {}", self.print_memory(self.pc)),
+            0xD8 => format!("CLD -- {}", self.print_memory(self.pc)),
+            0xD9 => format!("CMP $4400,Y -- {}", self.print_memory(self.pc)),
+            0xDD => format!("CMP $4400,X -- {}", self.print_memory(self.pc)),
+            0xDE => format!("DEC $4400,X -- {}", self.print_memory(self.pc)),
+            0xE0 => format!("CPX #$44 -- {}", self.print_memory(self.pc)),
+            0xE1 => format!("SBC ($44,X) -- {}", self.print_memory(self.pc)),
+            0xE4 => format!("CPX $44 -- {}", self.print_memory(self.pc)),
+            0xE5 => format!("SBC $44 -- {}", self.print_memory(self.pc)),
+            0xE6 => format!("INC $44 -- {}", self.print_memory(self.pc)),
+            0xE8 => format!("INX -- {}", self.print_memory(self.pc)),
+            0xE9 => format!("SBC #$44 -- {}", self.print_memory(self.pc)),
+            0xEA => format!("NOP -- {}", self.print_memory(self.pc)),
+            0xEC => format!("CPX $4400 -- {}", self.print_memory(self.pc)),
+            0xED => format!("SBC $4400 -- {}", self.print_memory(self.pc)),
+            0xEE => format!("INC $4400 -- {}", self.print_memory(self.pc)),
+            0xF0 => format!("BEQ -- {}", self.print_memory(self.pc)),
+            0xF1 => format!("SBC ($44),Y -- {}", self.print_memory(self.pc)),
+            0xF5 => format!("SBC $44,X -- {}", self.print_memory(self.pc)),
+            0xF6 => format!("INC $44,X -- {}", self.print_memory(self.pc)),
+            0xF8 => format!("SED -- {}", self.print_memory(self.pc)),
+            0xF9 => format!("SBC $4400,Y -- {}", self.print_memory(self.pc)),
+            0xFD => format!("SBC $4400,X -- {}", self.print_memory(self.pc)),
+            0xFE => format!("INC $4400,X -- {}", self.print_memory(self.pc)),
+            _ => format!("Unknown opcode: {:#04X}", opcode),
+        }
+    }
+
     pub fn step(&mut self) -> bool {
         let opcode = self.fetch_op();
+        if self.debug {
+            println!("{}", self.disassemble(opcode));
+        }
+
         let mut retval = true;
 
         match opcode {
@@ -740,9 +920,10 @@ impl<'a> Cpu<'a> {
     fn rol(&mut self, v: u8) -> u8 {
         let t = ((v as u16) << 1) | (self.cf as u16);
         self.cf = (t & 0x100) != 0;
-        self.set_zf(t.try_into().unwrap()); // TODO: Check this
-        self.set_nf(t.try_into().unwrap());
-        t as u8
+        let t = t as u8;
+        self.set_zf(t);
+        self.set_nf(t);
+        t
     }
 
     fn rol_a(&mut self) {
@@ -1020,7 +1201,10 @@ impl<'a> Cpu<'a> {
 
     fn bcs(&mut self) {
         let offset = self.fetch_op() as i8;
+        println!("offset: {}", offset);
+        println!("addr: {:#04X}", self.pc);
         let addr = (self.pc as i16).wrapping_add(offset as i16) as u16;
+        println!("final addr: {:#04X}", addr);
         if self.cf {
             self.pc = addr;
         }
@@ -1034,9 +1218,14 @@ impl<'a> Cpu<'a> {
 
     fn cmp(&mut self, v: u8, cycles: u8) {
         // let t = self.a as u16 - v as u16;
-        let t = self.a.wrapping_sub(v) as u16;
+        println!("a: {:#04X}", self.a);
+        println!("v: {:#04X}", v);
+        let t = (self.a as u16).wrapping_sub(v as u16);
+        println!("t: {:#04X}", t);
         self.cf = t < 0x100;
+        println!("cf: {}", self.cf);
         let t = t as u8;
+        println!("t: {:#04X}", t);
         self.set_zf(t);
         self.set_nf(t);
         self.tick(cycles);
@@ -1044,7 +1233,7 @@ impl<'a> Cpu<'a> {
 
     fn cpx(&mut self, v: u8, cycles: u8) {
         // let t = self.x as u16 - v as u16;
-        let t = self.x.wrapping_sub(v) as u16;
+        let t = (self.x as u16).wrapping_sub(v as u16);
         self.cf = t < 0x100;
         let t = t as u8;
         self.set_zf(t);
@@ -1054,7 +1243,7 @@ impl<'a> Cpu<'a> {
 
     fn cpy(&mut self, v: u8, cycles: u8) {
         // let t = self.y as u16 - v as u16;
-        let t = self.y.wrapping_sub(v) as u16;
+        let t = (self.y as u16).wrapping_sub(v as u16);
         self.cf = t < 0x100;
         let t = t as u8;
         self.set_zf(t);
@@ -1103,11 +1292,18 @@ impl<'a> Cpu<'a> {
     fn sbc(&mut self, v: u8, cycles: u8) {
         let mut t: u16;
         if self.dmf {
-            t = (self.a as u16 & 0xf) - (v as u16 & 0xf) - (if self.cf { 0 } else { 1 });
+            // t = (self.a as u16 & 0xf) - (v as u16 & 0xf) - (if self.cf { 0 } else { 1 });
+            t = (self.a as u16 & 0xf)
+                .wrapping_sub(v as u16 & 0xf)
+                .wrapping_sub(if self.cf { 0 } else { 1 });
             if (t & 0x10) != 0 {
-                t = ((t - 0x6) & 0xf) | ((self.a as u16 & 0xf0) - (v as u16 & 0xf0) - 0x10);
+                // t = ((t - 0x6) & 0xf) | ((self.a as u16 & 0xf0) - (v as u16 & 0xf0) - 0x10);
+                t = ((t - 0x6) & 0xf)
+                    .wrapping_add((self.a as u16 & 0xf0).wrapping_sub(v as u16 & 0xf0))
+                    .wrapping_sub(0x10);
             } else {
-                t = (t & 0xf) | ((self.a as u16 & 0xf0) - (v as u16 & 0xf0));
+                // t = (t & 0xf) | ((self.a as u16 & 0xf0) - (v as u16 & 0xf0));
+                t = (t & 0xf).wrapping_add((self.a as u16 & 0xf0).wrapping_sub(v as u16 & 0xf0));
             }
             if (t & 0x100) != 0 {
                 t -= 0x60;

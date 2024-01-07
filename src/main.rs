@@ -102,6 +102,7 @@ fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>) {
 // https://github.com/Klaus2m5/6502_65C02_functional_tests
 fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
     let mut pc: u16 = 0x0;
+    cpu.borrow_mut().set_debug(true);
     cpu.borrow_mut()
         .memory
         .borrow_mut()
@@ -113,7 +114,7 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
         .unwrap();
     cpu.borrow_mut().pc = 0x400;
     loop {
-        println!("PC: {:#04X}", pc);
+        // println!("PC: {:#04X}", pc);
         if pc == cpu.borrow().pc {
             println!("Infinit loop at {:#04X}", pc);
             break;
@@ -136,6 +137,8 @@ fn run_c64(
     vic: Rc<RefCell<Vic>>,
 ) {
     // cpu.borrow_mut().pc = 0x00; //0xe000; //0xfce2;
+    // cpu.borrow_mut().pc = 0xfce2;
+    cpu.borrow_mut().set_debug(true);
     loop {
         if !cia1.borrow_mut().step() {
             break;
