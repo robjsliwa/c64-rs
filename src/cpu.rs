@@ -84,6 +84,7 @@ impl<'a> Cpu<'a> {
             0x01 => format!("ORA ($44,X) -- {}", self.print_memory(self.pc)),
             0x05 => format!("ORA $44 -- {}", self.print_memory(self.pc)),
             0x06 => format!("ASL $44 -- {}", self.print_memory(self.pc)),
+            0x08 => format!("PHP -- {}", self.print_memory(self.pc)),
             0x09 => format!("ORA #$44 -- {}", self.print_memory(self.pc)),
             0x0A => format!("ASL A -- {}", self.print_memory(self.pc)),
             0x0D => format!("ORA $4400 -- {}", self.print_memory(self.pc)),
@@ -1201,10 +1202,7 @@ impl<'a> Cpu<'a> {
 
     fn bcs(&mut self) {
         let offset = self.fetch_op() as i8;
-        println!("offset: {}", offset);
-        println!("addr: {:#04X}", self.pc);
         let addr = (self.pc as i16).wrapping_add(offset as i16) as u16;
-        println!("final addr: {:#04X}", addr);
         if self.cf {
             self.pc = addr;
         }
@@ -1218,14 +1216,9 @@ impl<'a> Cpu<'a> {
 
     fn cmp(&mut self, v: u8, cycles: u8) {
         // let t = self.a as u16 - v as u16;
-        println!("a: {:#04X}", self.a);
-        println!("v: {:#04X}", v);
         let t = (self.a as u16).wrapping_sub(v as u16);
-        println!("t: {:#04X}", t);
         self.cf = t < 0x100;
-        println!("cf: {}", self.cf);
         let t = t as u8;
-        println!("t: {:#04X}", t);
         self.set_zf(t);
         self.set_nf(t);
         self.tick(cycles);

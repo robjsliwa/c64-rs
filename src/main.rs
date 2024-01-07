@@ -137,7 +137,7 @@ fn run_c64(
     vic: Rc<RefCell<Vic>>,
 ) {
     // cpu.borrow_mut().pc = 0x00; //0xe000; //0xfce2;
-    // cpu.borrow_mut().pc = 0xfce2;
+    // cpu.borrow_mut().pc = 0x00;
     cpu.borrow_mut().set_debug(true);
     loop {
         if !cia1.borrow_mut().step() {
