@@ -30,13 +30,19 @@ The MOS 6510 CPU emulation is fully functional and passes the Klaus Dormann 6502
 - **I/O**
   - SDL2 window initialization
   - Keyboard event handling infrastructure
+  
+- **Program Loader**
+  - PRG file loading (binary programs with load address)
+  - BAS file loading (plain text BASIC programs)
+  - Automatic file type detection
+  - Auto-run support for both formats
+  - Command line file loading
 
 ### Not Yet Implemented
 
-- VIC-II (video chip) - graphics rendering
-- SID (sound chip) - audio
+- VIC-II (video chip) - partial graphics rendering
+- SID (sound chip) - partial audio
 - Full C64 boot sequence with BASIC/KERNAL ROMs
-- Program loading (.prg, .bas files)
 
 ## Building
 
@@ -100,11 +106,38 @@ Commands:
 - `display` - Display memory contents
 - `quit` - Exit debugger
 
-### Run Emulator (WIP)
+### Run Emulator
+
+Run the emulator without loading a program:
 
 ```bash
 cargo run --release
 ```
+
+Load and run a BASIC program:
+
+```bash
+cargo run --release assets/bas/10print.bas
+```
+
+Load and run a machine language program:
+
+```bash
+cargo run --release assets/prg/monopole.prg
+```
+
+#### Available Example Programs
+
+**BASIC Programs** (in `assets/bas/`):
+- `10print.bas` - Classic maze generator
+- `bouncing.bas` - Bouncing ball demo
+- `bitmap.bas` - Bitmap graphics demo
+- `lowercase.bas` - Lowercase text demo
+- `simple_tone.bas` - Simple SID audio test
+- `sound_test.bas` - SID sound test
+
+**Machine Language Programs** (in `assets/prg/`):
+- `monopole.prg` - Audio/visual demo
 
 Note: Full emulation requires C64 ROM files in `assets/roms/`:
 - `basic.901226-01.bin` - BASIC ROM
@@ -122,12 +155,18 @@ c64-rs/
 │   ├── cia1.rs      # CIA1 (keyboard, timers)
 │   ├── cia2.rs      # CIA2 (VIC banking, serial)
 │   ├── io.rs        # SDL2 I/O layer
-│   └── common.rs    # Shared types
+│   ├── loader/      # Program loader
+│   │   ├── mod.rs   # PRG/BAS file loading
+│   │   └── README.md # Loader documentation
+│   ├── vic/         # VIC-II video chip
+│   ├── sid/         # SID sound chip
+│   └── cia/         # CIA chip common
 ├── assets/
 │   ├── roms/        # C64 ROM files (not included)
 │   ├── tests/       # Test ROMs
 │   ├── bas/         # BASIC programs
 │   └── prg/         # Machine code programs
+├── tests/           # Integration tests
 └── c64rs-design/    # Design documentation
 ```
 

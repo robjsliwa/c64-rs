@@ -2,6 +2,7 @@ use crate::cia1::Cia1;
 use crate::cia2::Cia2;
 use crate::cpu::Cpu;
 use crate::io::IO;
+use crate::loader::Loader;
 use crate::memory::Memory;
 use crate::sid::Sid;
 use crate::vic::Vic;
@@ -16,6 +17,7 @@ mod cia1;
 mod cia2;
 mod cpu;
 mod io;
+mod loader;
 mod memory;
 mod sid;
 mod vic;
@@ -164,6 +166,7 @@ fn run_c64(
     sid: Rc<RefCell<Sid>>,
     io: Rc<RefCell<IO>>,
     audio_state: Arc<Mutex<audio::SidState>>,
+    mut loader: Option<Loader>,
 ) {
     loop {
         if !cia1.borrow_mut().step() {
@@ -191,6 +194,11 @@ fn run_c64(
                     state.clear_old_samples();
                 }
             }
+        }
+
+        // Step loader if present
+        if let Some(ref mut loader) = loader {
+            loader.emulate();
         }
 
         if !cpu.borrow_mut().step() {
@@ -240,6 +248,12 @@ fn main() -> Result<(), String> {
     let matches = command!()
         .subcommand(Command::new("debug"))
         .subcommand(Command::new("test"))
+        .arg(
+            clap::Arg::new("program")
+                .help("Program file to load (.prg or .bas)")
+                .value_name("FILE")
+                .index(1),
+        )
         .get_matches();
 
     match matches.subcommand_name() {
@@ -253,7 +267,30 @@ fn main() -> Result<(), String> {
             test_cpu(cpu, memory);
             return Ok(());
         }
-        _ => run_c64(cpu, cia1, cia2, vic, sid, io, audio_state),
+        _ => {
+            // Check for program argument
+            let loader = if let Some(program_path) = matches.get_one::<String>("program") {
+                match Loader::load_file(program_path) {
+                    Ok(mut loader) => {
+                        println!("Loading program: {}", program_path);
+                        loader.set_references(
+                            Rc::downgrade(&memory),
+                            Rc::downgrade(&cpu),
+                            Rc::downgrade(&io),
+                        );
+                        Some(loader)
+                    }
+                    Err(e) => {
+                        eprintln!("Error loading program: {:?}", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+
+            run_c64(cpu, cia1, cia2, vic, sid, io, audio_state, loader)
+        }
     }
 
     Ok(())
