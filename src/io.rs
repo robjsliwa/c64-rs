@@ -35,6 +35,7 @@ pub struct IO {
     frame_start: Instant,
 }
 
+#[derive(Debug)]
 pub(crate) enum KeyEvent {
     Press,
     Release,
@@ -277,9 +278,14 @@ impl IO {
     #[allow(dead_code)] // Used for programmatic keyboard input
     pub fn type_character(&mut self, character: char) {
         if let Some(keycodes) = self.charmap.get(&character).cloned() {
-            for keycode in keycodes {
-                self.queue_key_event(KeyEvent::Press, keycode);
-                self.queue_key_event(KeyEvent::Release, keycode);
+            // Press all keys in order (e.g., SHIFT first, then the key)
+            for keycode in &keycodes {
+                self.queue_key_event(KeyEvent::Press, *keycode);
+            }
+
+            // Release all keys in reverse order (e.g., release the key first, then SHIFT)
+            for keycode in keycodes.iter().rev() {
+                self.queue_key_event(KeyEvent::Release, *keycode);
             }
         }
     }
@@ -312,6 +318,8 @@ impl IO {
                     KeyEvent::Release => self.handle_keyup(keycode),
                 }
             }
+
+            // Wait before processing next event
             self.next_key_event_at = self.cpu.borrow().cycles() + Self::WAIT_DURATION;
         }
     }
