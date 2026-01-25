@@ -8,6 +8,7 @@ pub struct Cpu {
     pub a: u8,                         // Accumulator
     pub x: u8,                         // X register
     pub y: u8,                         // Y register
+    #[allow(dead_code)] // Status register used internally, not read externally yet
     status: u8,                        // Processor Status
     pub memory: Rc<RefCell<Memory>>,   // Shared reference to memory
     cycles: u32,                       // CPU cycles
@@ -681,6 +682,7 @@ impl Cpu {
         self.sp -= 1;
     }
 
+    #[allow(dead_code)] // Stack utility method
     pub fn pop(&mut self) -> u8 {
         let addr = (self.sp + 1) as u16 + Memory::BASE_ADDR_STACK;
         self.sp += 1;

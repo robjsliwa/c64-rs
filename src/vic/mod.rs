@@ -87,11 +87,13 @@ impl Vic {
     }
 
     /// Set VIC bank (called from CIA2 when PRA changes)
+    #[allow(dead_code)] // TODO: Wire up CIA2.vic_base_address() to call this
     pub fn set_vic_bank(&mut self, bank: u8) {
         self.vic_bank = bank & 0x03;
     }
 
     /// Get current VIC bank
+    #[allow(dead_code)]
     pub fn get_vic_bank(&self) -> u8 {
         self.vic_bank
     }

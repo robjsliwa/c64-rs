@@ -1,4 +1,5 @@
 // VIC-II PAL timing constants
+#![allow(dead_code)] // Many constants for Phase 5+ features
 
 // PAL timing
 pub const SCREEN_LINES: u16 = 312;
