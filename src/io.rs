@@ -1,15 +1,14 @@
 use super::cpu::Cpu;
 use sdl2::keyboard::Keycode;
 use sdl2::render::WindowCanvas;
-use sdl2::video::Window;
 use sdl2::EventPump;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::vec::Vec;
 
-pub struct IO<'a> {
-    cpu: Rc<RefCell<Cpu<'a>>>,
+pub struct IO {
+    cpu: Rc<RefCell<Cpu>>,
     keyboard_matrix: [u8; 8],
     keymap: HashMap<Keycode, (i32, i32)>,
     charmap: HashMap<char, Vec<Keycode>>,
@@ -26,9 +25,9 @@ enum KeyEvent {
     Release,
 }
 
-impl<'a> IO<'a> {
+impl IO {
     pub const WAIT_DURATION: u32 = 18000;
-    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>) -> Result<Self, String> {
+    pub fn new(cpu: Rc<RefCell<Cpu>>) -> Result<Self, String> {
         let sdl_context = sdl2::init()?;
         let video_subsystem = sdl_context.video()?;
 

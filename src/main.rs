@@ -14,7 +14,7 @@ mod cpu;
 mod io;
 mod memory;
 
-fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>) {
+fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>, memory: Rc<RefCell<Memory>>) {
     // TEMP: Load the machine code into memory (for our sample program)
     // LDX #$03      ; Load X register with the number 3
     // LDA #$05      ; Load accumulator with the number 5
@@ -95,13 +95,13 @@ fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>) {
 // Runs Klaus Dormann's 6502 test suite
 //
 // https://github.com/Klaus2m5/6502_65C02_functional_tests
-fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
+fn test_cpu(cpu: Rc<RefCell<Cpu>>, memory: Rc<RefCell<Memory>>) {
     let mut last_pc: u16 = 0x0;
-    cpu.borrow_mut()
-        .memory
+    memory
+        .borrow_mut()
         .write_byte(Memory::ADDR_MEMORY_LAYOUT, 0);
-    cpu.borrow_mut()
-        .memory
+    memory
+        .borrow_mut()
         .load_ram("tests/6502_functional_test.bin", 0x400)
         .unwrap();
     cpu.borrow_mut().pc = 0x400;
@@ -128,7 +128,7 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
         // Trap detection: PC stuck in infinite loop
         if current_pc == last_pc {
             // Get test number from memory for debugging
-            let test_num = cpu.borrow().memory.read_byte(0x0200);
+            let test_num = memory.borrow().read_byte(0x0200);
             println!("Test FAILED: trapped at ${:04X}, test number: ${:02X}", current_pc, test_num);
             break;
         }
@@ -164,11 +164,18 @@ fn run_c64(
 }
 
 fn main() -> Result<(), String> {
-    let mut mem = Memory::new()?;
-    let cpu = Rc::new(RefCell::new(Cpu::new(&mut mem)));
+    let memory = Rc::new(RefCell::new(Memory::new()?));
+    let cpu = Rc::new(RefCell::new(Cpu::new(memory.clone())));
     let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
     let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
     let cia2 = Rc::new(RefCell::new(Cia2::new(cpu.clone())));
+
+    // Register devices with memory for I/O routing
+    {
+        let mut mem = memory.borrow_mut();
+        mem.register_cia1(Rc::downgrade(&cia1));
+        mem.register_cia2(Rc::downgrade(&cia2));
+    }
 
     let matches = command!()
         .subcommand(Command::new("debug"))
@@ -178,12 +185,12 @@ fn main() -> Result<(), String> {
     match matches.subcommand_name() {
         Some("debug") => {
             println!("Debug mode enabled");
-            debug(cpu, cia1);
+            debug(cpu, cia1, memory);
             return Ok(());
         }
         Some("test") => {
             println!("Test mode enabled");
-            test_cpu(cpu);
+            test_cpu(cpu, memory);
             return Ok(());
         }
         _ => run_c64(cpu, cia1, cia2, io),

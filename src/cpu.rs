@@ -1,14 +1,16 @@
 use crate::memory::Memory;
+use std::cell::RefCell;
+use std::rc::Rc;
 
-pub struct Cpu<'a> {
-    pub pc: u16,                // Program Counter
-    pub sp: u8,                 // Stack Pointer
-    pub a: u8,                  // Accumulator
-    pub x: u8,                  // X register
-    pub y: u8,                  // Y register
-    status: u8,                 // Processor Status
-    pub memory: &'a mut Memory, // Reference to the memory
-    cycles: u32,                // CPU cycles
+pub struct Cpu {
+    pub pc: u16,                       // Program Counter
+    pub sp: u8,                        // Stack Pointer
+    pub a: u8,                         // Accumulator
+    pub x: u8,                         // X register
+    pub y: u8,                         // Y register
+    status: u8,                        // Processor Status
+    pub memory: Rc<RefCell<Memory>>,   // Shared reference to memory
+    cycles: u32,                       // CPU cycles
 
     // Flags
     carry: bool,
@@ -20,8 +22,8 @@ pub struct Cpu<'a> {
     negative: bool,
 }
 
-impl<'a> Cpu<'a> {
-    pub fn new(memory: &'a mut Memory) -> Self {
+impl Cpu {
+    pub fn new(memory: Rc<RefCell<Memory>>) -> Self {
         Cpu {
             pc: 0,
             sp: 0xFF, // Stack starts at 0xFF
@@ -41,6 +43,19 @@ impl<'a> Cpu<'a> {
         }
     }
 
+    // Helper methods for memory access
+    fn mem_read(&self, addr: u16) -> u8 {
+        self.memory.borrow().read_byte(addr)
+    }
+
+    fn mem_write(&self, addr: u16, value: u8) {
+        self.memory.borrow_mut().write_byte(addr, value);
+    }
+
+    fn mem_read_word(&self, addr: u16) -> u16 {
+        self.memory.borrow().read_word(addr)
+    }
+
     pub fn reset(&mut self) {
         self.a = 0;
         self.x = 0;
@@ -53,13 +68,13 @@ impl<'a> Cpu<'a> {
         self.break_command = false;
         self.overflow = false;
         self.negative = false;
-        self.pc = self.memory.read_word(0xFFFC); // Read reset vector
+        self.pc = self.mem_read_word(0xFFFC); // Read reset vector
         self.cycles = 6;
     }
 
     pub fn step(&mut self) -> bool {
         let mut retval: bool = true;
-        let opcode = self.memory.read_byte(self.pc);
+        let opcode = self.mem_read(self.pc);
         self.pc += 1; // Increment PC after fetching the opcode
 
         match opcode {
@@ -629,7 +644,7 @@ impl<'a> Cpu<'a> {
         self.push(self.pc as u8 & 0xff);
         // push flags with BCF (Break Command flag) cleared
         self.push(self.status_from_flags() & 0xef);
-        self.pc = self.memory.read_word(Memory::ADDR_NMI_VECTOR);
+        self.pc = self.mem_read_word(Memory::ADDR_NMI_VECTOR);
         self.tick(7);
     }
 
@@ -645,18 +660,18 @@ impl<'a> Cpu<'a> {
         self.interrupt_disable = true;
 
         // Load the program counter with the address from the IRQ vector
-        let lo = self.memory.read_byte(Memory::ADDR_IRQ_VECTOR) as u16;
-        let hi = self.memory.read_byte(Memory::ADDR_IRQ_VECTOR + 1) as u16;
+        let lo = self.mem_read(Memory::ADDR_IRQ_VECTOR) as u16;
+        let hi = self.mem_read(Memory::ADDR_IRQ_VECTOR + 1) as u16;
         self.pc = (hi << 8) | lo;
     }
 
     pub fn load_byte(&self, addr: u16) -> u8 {
-        self.memory.read_byte(addr)
+        self.mem_read(addr)
     }
 
     pub fn push(&mut self, v: u8) {
         let addr = Memory::BASE_ADDR_STACK + self.sp as u16;
-        self.memory.write_byte(addr, v);
+        self.mem_write(addr, v);
         self.sp -= 1;
     }
 
@@ -673,7 +688,7 @@ impl<'a> Cpu<'a> {
     }
 
     pub fn fetch_opw(&mut self) -> u16 {
-        let retval = self.memory.read_word(self.pc);
+        let retval = self.mem_read_word(self.pc);
         self.pc += 2;
         retval
     }
@@ -705,16 +720,16 @@ impl<'a> Cpu<'a> {
     pub fn addr_indx(&mut self) -> u16 {
         let zp_addr = (self.fetch_op().wrapping_add(self.x)) as u16;
         // Zero page wrap-around for the pointer read
-        let lo = self.memory.read_byte(zp_addr & 0xFF) as u16;
-        let hi = self.memory.read_byte((zp_addr.wrapping_add(1)) & 0xFF) as u16;
+        let lo = self.mem_read(zp_addr & 0xFF) as u16;
+        let hi = self.mem_read((zp_addr.wrapping_add(1)) & 0xFF) as u16;
         (hi << 8) | lo
     }
 
     pub fn addr_indy(&mut self) -> u16 {
         let zp_addr = self.fetch_op() as u16;
         // Zero page wrap-around for the pointer read
-        let lo = self.memory.read_byte(zp_addr) as u16;
-        let hi = self.memory.read_byte((zp_addr.wrapping_add(1)) & 0xFF) as u16;
+        let lo = self.mem_read(zp_addr) as u16;
+        let hi = self.mem_read((zp_addr.wrapping_add(1)) & 0xFF) as u16;
         ((hi << 8) | lo).wrapping_add(self.y as u16)
     }
 
@@ -725,12 +740,12 @@ impl<'a> Cpu<'a> {
 
     /// Writes a byte to the memory the CPU is using
     pub fn write_memory(&mut self, addr: u16, value: u8) {
-        self.memory.write_byte(addr, value);
+        self.mem_write(addr, value);
     }
 
     /// Reads a byte from the memory the CPU is using
     pub fn read_memory(&self, addr: u16) -> u8 {
-        self.memory.read_byte(addr)
+        self.mem_read(addr)
     }
 
     /// Read a word from the memory the CPU is using
@@ -798,24 +813,22 @@ impl<'a> Cpu<'a> {
 
     // STA: Store Accumulator
     fn op_sta(&mut self, addr: u16, cycles: u32) {
-        self.memory.write_byte(addr, self.a);
+        self.mem_write(addr, self.a);
         self.tick(cycles);
     }
 
     // INC: Increment Memory
     fn op_inc(&mut self, addr: u16, cycles: u32) {
-        let mut value = self.memory.read_byte(addr);
-        value = value.wrapping_add(1);
-        self.memory.write_byte(addr, value);
+        let value = self.mem_read(addr).wrapping_add(1);
+        self.mem_write(addr, value);
         self.update_zero_negative_flags(value);
         self.tick(cycles);
     }
 
     // DEC: Decrement Memory
     fn op_dec(&mut self, addr: u16, cycles: u32) {
-        let mut value = self.memory.read_byte(addr);
-        value = value.wrapping_sub(1);
-        self.memory.write_byte(addr, value);
+        let value = self.mem_read(addr).wrapping_sub(1);
+        self.mem_write(addr, value);
         self.update_zero_negative_flags(value);
         self.tick(cycles);
     }
@@ -922,11 +935,11 @@ impl<'a> Cpu<'a> {
 
     // ASL: Arithmetic Shift Left
     fn op_asl(&mut self, addr: u16, cycles: u32) {
-        let mut value = self.memory.read_byte(addr);
+        let value = self.mem_read(addr);
         self.carry = (value & 0x80) != 0;
-        value <<= 1;
-        self.memory.write_byte(addr, value);
-        self.update_zero_negative_flags(value);
+        let result = value << 1;
+        self.mem_write(addr, result);
+        self.update_zero_negative_flags(result);
         self.tick(cycles);
     }
 
@@ -939,11 +952,11 @@ impl<'a> Cpu<'a> {
 
     // LSR: Logical Shift Right
     fn op_lsr(&mut self, addr: u16, cycles: u32) {
-        let mut value = self.memory.read_byte(addr);
+        let value = self.mem_read(addr);
         self.carry = (value & 0x01) != 0;
-        value >>= 1;
-        self.memory.write_byte(addr, value);
-        self.update_zero_negative_flags(value);
+        let result = value >> 1;
+        self.mem_write(addr, result);
+        self.update_zero_negative_flags(result);
         self.tick(cycles);
     }
 
@@ -956,15 +969,15 @@ impl<'a> Cpu<'a> {
 
     // ROL: Rotate Left
     fn op_rol(&mut self, addr: u16, cycles: u32) {
-        let mut value = self.memory.read_byte(addr);
+        let value = self.mem_read(addr);
         let new_carry = (value & 0x80) != 0;
-        value <<= 1;
+        let mut result = value << 1;
         if self.carry {
-            value |= 0x01;
+            result |= 0x01;
         }
-        self.memory.write_byte(addr, value);
+        self.mem_write(addr, result);
         self.carry = new_carry;
-        self.update_zero_negative_flags(value);
+        self.update_zero_negative_flags(result);
         self.tick(cycles);
     }
 
@@ -981,15 +994,15 @@ impl<'a> Cpu<'a> {
 
     // ROR: Rotate Right
     fn op_ror(&mut self, addr: u16, cycles: u32) {
-        let mut value = self.memory.read_byte(addr);
+        let value = self.mem_read(addr);
         let new_carry = (value & 0x01) != 0;
-        value >>= 1;
+        let mut result = value >> 1;
         if self.carry {
-            value |= 0x80;
+            result |= 0x80;
         }
-        self.memory.write_byte(addr, value);
+        self.mem_write(addr, result);
         self.carry = new_carry;
-        self.update_zero_negative_flags(value);
+        self.update_zero_negative_flags(result);
         self.tick(cycles);
     }
 
@@ -1007,7 +1020,7 @@ impl<'a> Cpu<'a> {
     // ---- Stack Instructions ----
     // PHA: Push Accumulator onto Stack
     fn op_pha(&mut self) {
-        self.memory.write_byte(0x0100 + self.sp as u16, self.a);
+        self.mem_write(0x0100 + self.sp as u16, self.a);
         self.sp = self.sp.wrapping_sub(1);
         self.tick(3);
     }
@@ -1016,7 +1029,7 @@ impl<'a> Cpu<'a> {
     fn op_php(&mut self) {
         // PHP always pushes with break flag (bit 4) set
         let status = self.status_from_flags() | 0x10;
-        self.memory.write_byte(0x0100 + self.sp as u16, status);
+        self.mem_write(0x0100 + self.sp as u16, status);
         self.sp = self.sp.wrapping_sub(1);
         self.tick(3);
     }
@@ -1024,7 +1037,7 @@ impl<'a> Cpu<'a> {
     // PLA: Pull Accumulator from Stack
     fn op_pla(&mut self) {
         self.sp = self.sp.wrapping_add(1);
-        self.a = self.memory.read_byte(0x0100 + self.sp as u16);
+        self.a = self.mem_read(0x0100 + self.sp as u16);
         self.update_zero_negative_flags(self.a);
         self.tick(4);
     }
@@ -1032,20 +1045,20 @@ impl<'a> Cpu<'a> {
     // PLP: Pull Processor Status from Stack
     fn op_plp(&mut self) {
         self.sp = self.sp.wrapping_add(1);
-        let status = self.memory.read_byte(0x0100 + self.sp as u16);
+        let status = self.mem_read(0x0100 + self.sp as u16);
         self.flags_from_status(status);
         self.tick(4);
     }
 
     // STX: Store X Register
     fn op_stx(&mut self, addr: u16, cycles: u32) {
-        self.memory.write_byte(addr, self.x);
+        self.mem_write(addr, self.x);
         self.tick(cycles);
     }
 
     // STY: Store Y Register
     fn op_sty(&mut self, addr: u16, cycles: u32) {
-        self.memory.write_byte(addr, self.y);
+        self.mem_write(addr, self.y);
         self.tick(cycles);
     }
 
@@ -1192,17 +1205,17 @@ impl<'a> Cpu<'a> {
     fn push_word(&mut self, value: u16) {
         let hi = ((value >> 8) & 0xFF) as u8;
         let lo = (value & 0xFF) as u8;
-        self.memory.write_byte(0x0100 + self.sp as u16, hi);
+        self.mem_write(0x0100 + self.sp as u16, hi);
         self.sp = self.sp.wrapping_sub(1);
-        self.memory.write_byte(0x0100 + self.sp as u16, lo);
+        self.mem_write(0x0100 + self.sp as u16, lo);
         self.sp = self.sp.wrapping_sub(1);
     }
 
     fn pull_word(&mut self) -> u16 {
         self.sp = self.sp.wrapping_add(1);
-        let lo = self.memory.read_byte(0x0100 + self.sp as u16) as u16;
+        let lo = self.mem_read(0x0100 + self.sp as u16) as u16;
         self.sp = self.sp.wrapping_add(1);
-        let hi = self.memory.read_byte(0x0100 + self.sp as u16) as u16;
+        let hi = self.mem_read(0x0100 + self.sp as u16) as u16;
         (hi << 8) | lo
     }
 
@@ -1233,7 +1246,7 @@ impl<'a> Cpu<'a> {
 
     // BIT: Bit Test
     fn op_bit(&mut self, addr: u16, cycles: u32) {
-        let value = self.memory.read_byte(addr);
+        let value = self.mem_read(addr);
         let result = self.a & value;
 
         self.zero = result == 0;
@@ -1295,14 +1308,14 @@ impl<'a> Cpu<'a> {
 
         // Push status register to stack with break flag set
         let status = self.status_from_flags() | 0x10; // Set break flag
-        self.memory.write_byte(0x0100 + self.sp as u16, status);
+        self.mem_write(0x0100 + self.sp as u16, status);
         self.sp = self.sp.wrapping_sub(1);
 
         // Set interrupt disable flag to prevent further interrupts
         self.interrupt_disable = true;
 
         // Load interrupt vector into program counter
-        self.pc = self.memory.read_word(0xFFFE);
+        self.pc = self.mem_read_word(0xFFFE);
 
         self.tick(7);
     }

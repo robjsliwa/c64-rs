@@ -4,9 +4,9 @@ use super::io::IO;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct Cia1<'a> {
-    cpu: Rc<RefCell<Cpu<'a>>>,
-    io: Rc<RefCell<IO<'a>>>,
+pub struct Cia1 {
+    cpu: Rc<RefCell<Cpu>>,
+    io: Rc<RefCell<IO>>,
     timer_a_latch: u16,
     timer_b_latch: u16,
     timer_a_counter: i16,
@@ -26,8 +26,8 @@ pub struct Cia1<'a> {
     prb: u8,
 }
 
-impl<'a> Cia1<'a> {
-    pub fn new(cpu: Rc<RefCell<Cpu<'a>>>, io: Rc<RefCell<IO<'a>>>) -> Self {
+impl Cia1 {
+    pub fn new(cpu: Rc<RefCell<Cpu>>, io: Rc<RefCell<IO>>) -> Self {
         Cia1 {
             cpu,
             io,

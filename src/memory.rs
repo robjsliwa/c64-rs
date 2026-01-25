@@ -1,6 +1,10 @@
+use crate::cia1::Cia1;
+use crate::cia2::Cia2;
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
+use std::rc::Weak;
 
 // DRAM
 // $0000-$00FF  Page 0        Zeropage addressing
@@ -53,13 +57,12 @@ impl Banks {
 }
 
 pub struct Memory {
-    mem_ram: Vec<u8>, // RAM buffer
-    mem_rom: Vec<u8>, // ROM buffer
-    banks: [u8; 7],   // Memory bank configurations
-                      // vic: Option<*mut Vic>, // Using raw pointers for external device references
-                      // cia1: Option<*mut Cia1>,
-                      // cia2: Option<*mut Cia2>,
-                      // sid: Option<*mut Sid>,
+    mem_ram: Vec<u8>,         // RAM buffer
+    mem_rom: Vec<u8>,         // ROM buffer
+    banks: [u8; 7],           // Memory bank configurations
+    color_ram: [u8; 1024],    // Color RAM (1KB for $D800-$DBFF)
+    cia1: Option<Weak<RefCell<Cia1>>>,
+    cia2: Option<Weak<RefCell<Cia2>>>,
 }
 
 impl Memory {
@@ -80,6 +83,7 @@ impl Memory {
     pub const ADDR_ZERO_PAGE: u16 = 0x0000;
     pub const ADDR_VIC_FIRST_PAGE: u16 = 0xd000;
     pub const ADDR_VIC_LAST_PAGE: u16 = 0xd300;
+    pub const ADDR_COLOR_RAM_PAGE: u16 = 0xd800;
     pub const ADDR_CIA1_PAGE: u16 = 0xdc00;
     pub const ADDR_CIA2_PAGE: u16 = 0xdd00;
     pub const ADDR_BASIC_FIRST_PAGE: u16 = 0xa000;
@@ -99,6 +103,9 @@ impl Memory {
             mem_ram,
             mem_rom,
             banks,
+            color_ram: [0; 1024],
+            cia1: None,
+            cia2: None,
         };
 
         memory
@@ -106,6 +113,16 @@ impl Memory {
             .map_err(|e| format!("Failed to load ROMs: {}", e))?;
 
         Ok(memory)
+    }
+
+    /// Register CIA1 for I/O routing
+    pub fn register_cia1(&mut self, cia1: Weak<RefCell<Cia1>>) {
+        self.cia1 = Some(cia1);
+    }
+
+    /// Register CIA2 for I/O routing
+    pub fn register_cia2(&mut self, cia2: Weak<RefCell<Cia2>>) {
+        self.cia2 = Some(cia2);
     }
 
     // Writes a byte to RAM without performing I/O
@@ -124,23 +141,44 @@ impl Memory {
             } else {
                 self.mem_ram[addr as usize] = value;
             }
-        } else if page >= Self::ADDR_VIC_FIRST_PAGE && addr <= Self::ADDR_VIC_LAST_PAGE {
+        } else if page >= Self::ADDR_VIC_FIRST_PAGE && page <= Self::ADDR_VIC_LAST_PAGE {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                // vic.write_register(addr&0x7f, value);
-                todo!();
+                // VIC not implemented yet - write to RAM as fallback
+                self.mem_ram[addr as usize] = value;
+            } else {
+                self.mem_ram[addr as usize] = value;
+            }
+        } else if addr >= 0xD800 && addr <= 0xDBFF {
+            // Color RAM ($D800-$DBFF)
+            if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                // Color RAM is only 4 bits wide
+                self.color_ram[(addr - 0xD800) as usize] = value & 0x0F;
             } else {
                 self.mem_ram[addr as usize] = value;
             }
         } else if page == Self::ADDR_CIA1_PAGE {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                // cia1.write_register(addr&0x0f, value);
-                todo!();
+                if let Some(ref cia1_weak) = self.cia1 {
+                    if let Some(cia1) = cia1_weak.upgrade() {
+                        cia1.borrow_mut().write_register((addr & 0x0F) as u8, value);
+                        return;
+                    }
+                }
+                // Fallback to RAM if CIA1 not registered
+                self.mem_ram[addr as usize] = value;
             } else {
                 self.mem_ram[addr as usize] = value;
             }
         } else if page == Self::ADDR_CIA2_PAGE {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                // cia2.write_register(addr&0x0f, value);
+                if let Some(ref cia2_weak) = self.cia2 {
+                    if let Some(cia2) = cia2_weak.upgrade() {
+                        cia2.borrow_mut().write_register((addr & 0x0F) as u8, value);
+                        return;
+                    }
+                }
+                // Fallback to RAM if CIA2 not registered
+                self.mem_ram[addr as usize] = value;
             } else {
                 self.mem_ram[addr as usize] = value;
             }
@@ -154,32 +192,46 @@ impl Memory {
         let page = addr & 0xff00;
         match page {
             _ if (Self::ADDR_VIC_FIRST_PAGE..=Self::ADDR_VIC_LAST_PAGE).contains(&page) => {
-                // match self.banks[Banks::BankCharen.to_usize()] {
-                //     BankCfg::Io => self.vic.read_register(addr & 0x7f),
-                //     BankCfg::Rom => self.mem_rom[addr as usize],
-                //     _ => self.mem_ram[addr as usize],
-                // }
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                    // self.vic.read_register(addr & 0x7f)
-                    todo!();
+                    // VIC not implemented yet - return $FF
+                    0xFF
                 } else if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Rom.as_u8() {
                     self.mem_rom[addr as usize]
                 } else {
                     self.mem_ram[addr as usize]
                 }
             }
+            // Color RAM ($D800-$DBFF)
+            _ if addr >= 0xD800 && addr <= 0xDBFF => {
+                if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                    // Color RAM is only 4 bits wide, upper bits read as high
+                    self.color_ram[(addr - 0xD800) as usize] | 0xF0
+                } else {
+                    self.mem_ram[addr as usize]
+                }
+            }
             _ if page == Self::ADDR_CIA1_PAGE => {
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                    // self.cia1.read_register(addr & 0x0f)
-                    todo!();
+                    if let Some(ref cia1_weak) = self.cia1 {
+                        if let Some(cia1) = cia1_weak.upgrade() {
+                            return cia1.borrow().read_register((addr & 0x0F) as u8);
+                        }
+                    }
+                    // Return $FF if CIA1 not registered
+                    0xFF
                 } else {
                     self.mem_ram[addr as usize]
                 }
             }
             _ if page == Self::ADDR_CIA2_PAGE => {
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                    // self.cia2.read_register(addr & 0x0f)
-                    todo!();
+                    if let Some(ref cia2_weak) = self.cia2 {
+                        if let Some(cia2) = cia2_weak.upgrade() {
+                            return cia2.borrow().read_register((addr & 0x0F) as u8);
+                        }
+                    }
+                    // Return $FF if CIA2 not registered
+                    0xFF
                 } else {
                     self.mem_ram[addr as usize]
                 }
@@ -295,5 +347,52 @@ impl Memory {
         }
 
         Ok(())
+    }
+
+    /// Read memory as VIC sees it (with banking)
+    ///
+    /// Bank selection (CIA2 PRA bits 0-1, inverted):
+    /// - %00 = Bank 3: $C000-$FFFF
+    /// - %01 = Bank 2: $8000-$BFFF
+    /// - %10 = Bank 1: $4000-$7FFF
+    /// - %11 = Bank 0: $0000-$3FFF
+    pub fn vic_read_byte(&self, vic_addr: u16, bank: u8) -> u8 {
+        let base: u16 = match bank & 0x03 {
+            0 => 0xC000,
+            1 => 0x8000,
+            2 => 0x4000,
+            _ => 0x0000,
+        };
+
+        let address = base.wrapping_add(vic_addr & 0x3FFF);
+
+        // Character ROM visible in banks 0 and 2 at $1000-$1FFF
+        if bank == 0 || bank == 2 {
+            let local_addr = vic_addr & 0x3FFF;
+            if (0x1000..=0x1FFF).contains(&local_addr) {
+                return self.mem_rom[(Self::BASE_ADDR_CHARS + (local_addr & 0x0FFF)) as usize];
+            }
+        }
+
+        self.mem_ram[address as usize]
+    }
+
+    /// Dump memory contents for debugging
+    pub fn dump(&self, start: u16, length: u16) -> String {
+        let mut output = String::new();
+        let end = start.saturating_add(length);
+        for addr in (start..end).step_by(16) {
+            output.push_str(&format!("${:04X}: ", addr));
+            for offset in 0..16u16 {
+                if addr.wrapping_add(offset) < end {
+                    output.push_str(&format!(
+                        "{:02X} ",
+                        self.mem_ram[addr.wrapping_add(offset) as usize]
+                    ));
+                }
+            }
+            output.push('\n');
+        }
+        output
     }
 }
