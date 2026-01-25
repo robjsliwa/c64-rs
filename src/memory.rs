@@ -1,5 +1,6 @@
 use crate::cia1::Cia1;
 use crate::cia2::Cia2;
+use crate::sid::Sid;
 use crate::vic::Vic;
 use std::cell::RefCell;
 use std::fs::File;
@@ -66,6 +67,7 @@ pub struct Memory {
     cia1: Option<Weak<RefCell<Cia1>>>,
     cia2: Option<Weak<RefCell<Cia2>>>,
     vic: Option<Weak<RefCell<Vic>>>,
+    sid: Option<Weak<RefCell<Sid>>>,
 }
 
 impl Memory {
@@ -97,6 +99,7 @@ impl Memory {
     pub const ADDR_COLOR_RAM_PAGE: u16 = 0xd800;
     pub const ADDR_CIA1_PAGE: u16 = 0xdc00;
     pub const ADDR_CIA2_PAGE: u16 = 0xdd00;
+    pub const ADDR_SID_PAGE: u16 = 0xd400;
     pub const ADDR_BASIC_FIRST_PAGE: u16 = 0xa000;
     pub const ADDR_BASIC_LAST_PAGE: u16 = 0xbf00;
     pub const ADDR_KERNAL_FIRST_PAGE: u16 = 0xe000;
@@ -118,6 +121,7 @@ impl Memory {
             cia1: None,
             cia2: None,
             vic: None,
+            sid: None,
         };
 
         memory
@@ -140,6 +144,11 @@ impl Memory {
     /// Register VIC for I/O routing
     pub fn register_vic(&mut self, vic: Weak<RefCell<Vic>>) {
         self.vic = Some(vic);
+    }
+
+    /// Register SID for I/O routing
+    pub fn register_sid(&mut self, sid: Weak<RefCell<Sid>>) {
+        self.sid = Some(sid);
     }
 
     // Writes a byte to RAM without performing I/O
@@ -176,6 +185,20 @@ impl Memory {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
                 // Color RAM is only 4 bits wide
                 self.color_ram[(addr - 0xD800) as usize] = value & 0x0F;
+            } else {
+                self.mem_ram[addr as usize] = value;
+            }
+        } else if page == Self::ADDR_SID_PAGE {
+            // SID registers ($D400-$D4FF)
+            if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                if let Some(ref sid_weak) = self.sid {
+                    if let Some(sid) = sid_weak.upgrade() {
+                        sid.borrow_mut().write((addr & 0x1F) as u8, value);
+                        return;
+                    }
+                }
+                // Fallback to RAM if SID not registered
+                self.mem_ram[addr as usize] = value;
             } else {
                 self.mem_ram[addr as usize] = value;
             }
@@ -234,6 +257,20 @@ impl Memory {
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
                     // Color RAM is only 4 bits wide, upper bits read as high
                     self.color_ram[(addr - 0xD800) as usize] | 0xF0
+                } else {
+                    self.mem_ram[addr as usize]
+                }
+            }
+            _ if page == Self::ADDR_SID_PAGE => {
+                // SID registers ($D400-$D4FF)
+                if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
+                    if let Some(ref sid_weak) = self.sid {
+                        if let Some(sid) = sid_weak.upgrade() {
+                            return sid.borrow().read((addr & 0x1F) as u8);
+                        }
+                    }
+                    // Return $FF if SID not registered
+                    0xFF
                 } else {
                     self.mem_ram[addr as usize]
                 }

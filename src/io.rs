@@ -43,8 +43,7 @@ pub(crate) enum KeyEvent {
 impl IO {
     pub const WAIT_DURATION: u32 = 18000;
 
-    pub fn new(cpu: Rc<RefCell<Cpu>>) -> Result<Self, String> {
-        let sdl_context = sdl2::init()?;
+    pub fn new(cpu: Rc<RefCell<Cpu>>, sdl_context: &sdl2::Sdl) -> Result<Self, String> {
         let video_subsystem = sdl_context.video()?;
 
         let window = video_subsystem

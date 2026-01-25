@@ -3,17 +3,21 @@ use crate::cia2::Cia2;
 use crate::cpu::Cpu;
 use crate::io::IO;
 use crate::memory::Memory;
+use crate::sid::Sid;
 use crate::vic::Vic;
 use clap::{command, Command};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
+mod audio;
 mod cia;
 mod cia1;
 mod cia2;
 mod cpu;
 mod io;
 mod memory;
+mod sid;
 mod vic;
 
 fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>, _memory: Rc<RefCell<Memory>>) {
@@ -131,7 +135,10 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>, memory: Rc<RefCell<Memory>>) {
         if current_pc == last_pc {
             // Get test number from memory for debugging
             let test_num = memory.borrow().read_byte(0x0200);
-            println!("Test FAILED: trapped at ${:04X}, test number: ${:02X}", current_pc, test_num);
+            println!(
+                "Test FAILED: trapped at ${:04X}, test number: ${:02X}",
+                current_pc, test_num
+            );
             break;
         }
 
@@ -139,7 +146,11 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>, memory: Rc<RefCell<Memory>>) {
 
         cycles += 1;
         if cycles >= max_cycles {
-            println!("Test timeout after {} cycles at ${:04X}", cycles, cpu.borrow().pc);
+            println!(
+                "Test timeout after {} cycles at ${:04X}",
+                cycles,
+                cpu.borrow().pc
+            );
             break;
         }
     }
@@ -150,7 +161,9 @@ fn run_c64(
     cia1: Rc<RefCell<Cia1>>,
     cia2: Rc<RefCell<Cia2>>,
     vic: Rc<RefCell<Vic>>,
+    sid: Rc<RefCell<Sid>>,
     io: Rc<RefCell<IO>>,
+    audio_state: Arc<Mutex<audio::SidState>>,
 ) {
     loop {
         if !cia1.borrow_mut().step() {
@@ -162,6 +175,24 @@ fn run_c64(
         if !vic.borrow_mut().step() {
             break;
         }
+
+        // Clock SID chip
+        {
+            let mut sid_mut = sid.borrow_mut();
+            sid_mut.clock();
+
+            // Generate audio sample if ready
+            if sid_mut.should_generate_sample() {
+                let sample = sid_mut.generate_sample();
+
+                // Push sample to audio buffer
+                if let Ok(mut state) = audio_state.lock() {
+                    state.push_sample(sample);
+                    state.clear_old_samples();
+                }
+            }
+        }
+
         if !cpu.borrow_mut().step() {
             break;
         }
@@ -174,16 +205,25 @@ fn run_c64(
 }
 
 fn main() -> Result<(), String> {
+    let sdl_context = sdl2::init()?;
+
+    // Initialize audio
+    let (_audio_device, audio_state) = audio::init_audio(&sdl_context)?;
+
     let memory = Rc::new(RefCell::new(Memory::new()?));
     let cpu = Rc::new(RefCell::new(Cpu::new(memory.clone())));
-    let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
-    let cia1 = Rc::new(RefCell::new(Cia1::new(Rc::downgrade(&cpu), Rc::downgrade(&io))));
+    let io = Rc::new(RefCell::new(IO::new(cpu.clone(), &sdl_context)?));
+    let cia1 = Rc::new(RefCell::new(Cia1::new(
+        Rc::downgrade(&cpu),
+        Rc::downgrade(&io),
+    )));
     let cia2 = Rc::new(RefCell::new(Cia2::new(Rc::downgrade(&cpu))));
     let vic = Rc::new(RefCell::new(Vic::new(
         Rc::downgrade(&memory),
         Rc::downgrade(&cpu),
         io.clone(),
     )));
+    let sid = Rc::new(RefCell::new(Sid::new(44100))); // 44.1kHz sample rate
 
     // Register devices with memory for I/O routing
     {
@@ -191,6 +231,7 @@ fn main() -> Result<(), String> {
         mem.register_cia1(Rc::downgrade(&cia1));
         mem.register_cia2(Rc::downgrade(&cia2));
         mem.register_vic(Rc::downgrade(&vic));
+        mem.register_sid(Rc::downgrade(&sid));
     }
 
     // Reset CPU to initialize PC from reset vector
@@ -212,7 +253,7 @@ fn main() -> Result<(), String> {
             test_cpu(cpu, memory);
             return Ok(());
         }
-        _ => run_c64(cpu, cia1, cia2, vic, io),
+        _ => run_c64(cpu, cia1, cia2, vic, sid, io, audio_state),
     }
 
     Ok(())
