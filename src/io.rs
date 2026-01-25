@@ -35,7 +35,7 @@ pub struct IO {
     frame_start: Instant,
 }
 
-enum KeyEvent {
+pub(crate) enum KeyEvent {
     Press,
     Release,
 }
@@ -232,10 +232,12 @@ impl IO {
         }
     }
 
+    #[allow(dead_code)] // Used for programmatic keyboard input (auto-typing BASIC programs)
     pub fn queue_key_event(&mut self, event: KeyEvent, key: Keycode) {
         self.key_event_queue.push_back((event, key));
     }
 
+    #[allow(dead_code)] // Used for programmatic keyboard input
     pub fn type_character(&mut self, character: char) {
         if let Some(keycodes) = self.charmap.get(&character).cloned() {
             for keycode in keycodes {

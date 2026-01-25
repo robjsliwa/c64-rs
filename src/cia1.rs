@@ -2,7 +2,7 @@ use super::cia::{CiaBase, REG_PRB};
 use super::cpu::Cpu;
 use super::io::IO;
 use std::cell::RefCell;
-use std::rc::{Rc, Weak};
+use std::rc::Weak;
 
 pub struct Cia1 {
     base: CiaBase,
@@ -16,11 +16,7 @@ impl Cia1 {
         // CIA1: PRA is output for keyboard column selection, PRB is input for row reading
         base.ddra = 0xFF; // All output
         base.ddrb = 0x00; // All input
-        Cia1 {
-            base,
-            cpu,
-            io,
-        }
+        Cia1 { base, cpu, io }
     }
 
     pub fn write_register(&mut self, r: u8, v: u8) {
@@ -38,7 +34,7 @@ impl Cia1 {
                         // No columns selected, return all high
                         return 0xFF;
                     }
-                    
+
                     // Read all selected columns and OR them together
                     let mut result = 0xFF;
                     for col in 0..8 {
@@ -81,8 +77,8 @@ impl Cia1 {
         true
     }
 
+    #[allow(dead_code)] // TODO: Wire up to emulator reset
     pub fn reset(&mut self) {
         self.base.reset();
     }
 }
-

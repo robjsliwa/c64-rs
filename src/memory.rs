@@ -35,6 +35,7 @@ impl BankCfg {
         self as u8
     }
 
+    #[allow(dead_code)] // Helper for bank configuration
     fn from_u8(value: u8) -> Option<BankCfg> {
         match value {
             0 => Some(BankCfg::Rom),
@@ -72,19 +73,27 @@ impl Memory {
     pub const BASE_ADDR_BASIC: u16 = 0xa000;
     pub const BASE_ADDR_KERNAL: u16 = 0xe000;
     pub const BASE_ADDR_STACK: u16 = 0x0100;
+    #[allow(dead_code)] // Memory layout constants for future use
     pub const BASE_ADDR_SCREEN: u16 = 0x0400;
+    #[allow(dead_code)]
     pub const BASE_ADDR_CHARS: u16 = 0xd000;
+    #[allow(dead_code)]
     pub const BASE_ADDR_BITMAP: u16 = 0x0000;
+    #[allow(dead_code)]
     pub const BASE_ADDR_COLOR_RAM: u16 = 0xd800;
+    #[allow(dead_code)]
     pub const ADDR_RESET_VECTOR: u16 = 0xfffc;
     pub const ADDR_IRQ_VECTOR: u16 = 0xfffe;
     pub const ADDR_NMI_VECTOR: u16 = 0xfffa;
+    #[allow(dead_code)]
     pub const ADDR_DATA_DIRECTION: u16 = 0x0000;
     pub const ADDR_MEMORY_LAYOUT: u16 = 0x0001;
+    #[allow(dead_code)]
     pub const ADDR_COLOR_RAM: u16 = 0xd800;
     pub const ADDR_ZERO_PAGE: u16 = 0x0000;
     pub const ADDR_VIC_FIRST_PAGE: u16 = 0xd000;
     pub const ADDR_VIC_LAST_PAGE: u16 = 0xd300;
+    #[allow(dead_code)]
     pub const ADDR_COLOR_RAM_PAGE: u16 = 0xd800;
     pub const ADDR_CIA1_PAGE: u16 = 0xdc00;
     pub const ADDR_CIA2_PAGE: u16 = 0xdd00;
@@ -274,6 +283,7 @@ impl Memory {
     }
 
     // Reads a byte without performing I/O, always from RAM
+    #[allow(dead_code)] // Utility for direct RAM access, used in debugging
     pub fn read_byte_no_io(&self, addr: u16) -> u8 {
         self.mem_ram[addr as usize]
     }
@@ -323,6 +333,7 @@ impl Memory {
     }
 
     /// Writes a 16-bit word to memory at the given address
+    #[allow(dead_code)] // Utility method for 16-bit writes
     pub fn write_word(&mut self, addr: u16, value: u16) {
         let lsb = (value & 0xFF) as u8;
         let msb = ((value >> 8) & 0xFF) as u8;
@@ -398,6 +409,7 @@ impl Memory {
     }
 
     /// Dump memory contents for debugging
+    #[allow(dead_code)]
     pub fn dump(&self, start: u16, length: u16) -> String {
         let mut output = String::new();
         let end = start.saturating_add(length);

@@ -26,10 +26,12 @@ impl Cia2 {
 
     /// Get VIC bank selection (0-3)
     /// PRA bits 0-1 (inverted) select the VIC memory bank
+    #[allow(dead_code)] // TODO: VIC should call this for proper memory banking
     pub fn vic_base_address(&self) -> u16 {
         ((!self.base.pra & 0x3) as u16) << 14
     }
 
+    #[allow(dead_code)] // TODO: Wire up to emulator reset
     pub fn step(&mut self) -> bool {
         // Get current CPU cycles
         let current_cycles = if let Some(cpu) = self.cpu.upgrade() {
@@ -56,8 +58,8 @@ impl Cia2 {
         true
     }
 
+    #[allow(dead_code)] // TODO: Wire up to emulator reset
     pub fn reset(&mut self) {
         self.base.reset();
     }
 }
-

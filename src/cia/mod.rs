@@ -6,8 +6,4 @@
 pub mod base;
 pub mod timer;
 
-pub use base::{
-    CiaBase, REG_CRA, REG_CRB, REG_DDRA, REG_DDRB, REG_ICR, REG_PRA, REG_PRB, REG_TAHI, REG_TALO,
-    REG_TBHI, REG_TBLO,
-};
-pub use timer::Timer;
+pub use base::{CiaBase, REG_PRB};

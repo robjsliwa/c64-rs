@@ -138,16 +138,19 @@ impl Timer {
     }
 
     /// Check if underflow occurred
+    #[allow(dead_code)] // Utility methods for timer inspection
     pub fn underflow(&self) -> bool {
         self.underflow
     }
 
     /// Get the output state (for PB6/7 or Timer B CNT input)
+    #[allow(dead_code)]
     pub fn output(&self) -> bool {
         self.output
     }
 
     /// Check if timer is running
+    #[allow(dead_code)]
     pub fn is_running(&self) -> bool {
         self.running
     }

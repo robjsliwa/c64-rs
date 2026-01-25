@@ -1,4 +1,5 @@
 // VIC-II Register constants
+#![allow(dead_code)] // Many registers for Phase 5+ sprite and advanced graphics features
 
 // Sprite position registers ($D000-$D00F)
 pub const REG_SPRITE0_X: u8 = 0x00;

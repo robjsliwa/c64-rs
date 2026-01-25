@@ -12,10 +12,15 @@ pub const REG_TALO: u8 = 0x04;
 pub const REG_TAHI: u8 = 0x05;
 pub const REG_TBLO: u8 = 0x06;
 pub const REG_TBHI: u8 = 0x07;
+#[allow(dead_code)] // Time-of-Day clock - not yet implemented
 pub const REG_TOD_10THS: u8 = 0x08;
+#[allow(dead_code)]
 pub const REG_TOD_SEC: u8 = 0x09;
+#[allow(dead_code)]
 pub const REG_TOD_MIN: u8 = 0x0A;
+#[allow(dead_code)]
 pub const REG_TOD_HR: u8 = 0x0B;
+#[allow(dead_code)] // Serial Data Register - not yet implemented
 pub const REG_SDR: u8 = 0x0C;
 pub const REG_ICR: u8 = 0x0D;
 pub const REG_CRA: u8 = 0x0E;
@@ -24,8 +29,11 @@ pub const REG_CRB: u8 = 0x0F;
 // ICR bits
 pub const ICR_TIMER_A: u8 = 0x01;
 pub const ICR_TIMER_B: u8 = 0x02;
+#[allow(dead_code)] // TOD alarm and serial/flag interrupts - not yet implemented
 pub const ICR_TOD_ALARM: u8 = 0x04;
+#[allow(dead_code)]
 pub const ICR_SDR: u8 = 0x08;
+#[allow(dead_code)]
 pub const ICR_FLAG: u8 = 0x10;
 pub const ICR_ANY: u8 = 0x80;
 
@@ -151,6 +159,7 @@ impl CiaBase {
     }
 
     /// Reset the CIA to power-on state
+    #[allow(dead_code)] // TODO: Wire up to emulator reset
     pub fn reset(&mut self) {
         self.pra = 0xFF;
         self.prb = 0xFF;

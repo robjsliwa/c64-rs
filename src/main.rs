@@ -11,13 +11,12 @@ use std::rc::Rc;
 mod cia;
 mod cia1;
 mod cia2;
-mod common;
 mod cpu;
 mod io;
 mod memory;
 mod vic;
 
-fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>, memory: Rc<RefCell<Memory>>) {
+fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>, _memory: Rc<RefCell<Memory>>) {
     // TEMP: Load the machine code into memory (for our sample program)
     // LDX #$03      ; Load X register with the number 3
     // LDA #$05      ; Load accumulator with the number 5
