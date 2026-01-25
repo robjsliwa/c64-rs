@@ -34,3 +34,13 @@ pub const CHAR_COLS: u32 = 40;
 pub const CHAR_ROWS: u32 = 25;
 pub const CHAR_WIDTH: u32 = 8;
 pub const CHAR_HEIGHT: u32 = 8;
+
+// Sprite constants
+pub const SPRITE_WIDTH: u32 = 24;
+pub const SPRITE_HEIGHT: u32 = 21;
+pub const SPRITE_BYTES_PER_LINE: u32 = 3;
+pub const SPRITE_DATA_SIZE: u32 = 63; // 21 lines * 3 bytes
+pub const NUM_SPRITES: usize = 8;
+
+// Sprite pointer offset from screen memory
+pub const SPRITE_POINTER_OFFSET: u16 = 0x3F8;
