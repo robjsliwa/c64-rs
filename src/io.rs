@@ -194,6 +194,10 @@ impl IO {
         io.keymap.insert(Keycode::Quote, (5, 6));
         io.keymap.insert(Keycode::LGui, (7, 5)); // Commodore key
 
+        io.keymap.insert(Keycode::Right, (0, 2)); // CRSR Right/Left key
+        io.keymap.insert(Keycode::Down, (0, 7)); // CRSR Down/Up key
+                                                 // Left and Up are handled specially in handle_keydown/handle_keyup (SHIFT + cursor)
+
         Ok(io)
     }
 
@@ -202,7 +206,7 @@ impl IO {
         // Each row has 8 bits representing columns 0-7
         // We need to build a byte where each bit represents a row for the given column
         let mut result = 0xFF; // All keys released (active low)
-        
+
         for row in 0..8 {
             // Check if the bit for this column is clear in this row (key pressed)
             if (self.keyboard_matrix[row] & (1 << col)) == 0 {
@@ -210,11 +214,28 @@ impl IO {
                 result &= !(1 << row);
             }
         }
-        
+
         result
     }
 
     pub fn handle_keydown(&mut self, key: Keycode) {
+        // Special handling for cursor Left and Up (require SHIFT + cursor key on C64)
+        match key {
+            Keycode::Left => {
+                // SHIFT + CRSR Right
+                self.keyboard_matrix[7] &= !(1 << 1); // Left Shift at row 7, col 1
+                self.keyboard_matrix[2] &= !(1 << 0); // CRSR Right at row 2, col 0
+                return;
+            }
+            Keycode::Up => {
+                // SHIFT + CRSR Down
+                self.keyboard_matrix[7] &= !(1 << 1); // Left Shift at row 7, col 1
+                self.keyboard_matrix[7] &= !(1 << 0); // CRSR Down at row 7, col 0
+                return;
+            }
+            _ => {}
+        }
+
         if let Some(&(col, row)) = self.keymap.get(&key) {
             // Keymap stores (col, row) not (row, col)
             // Clear the bit at [row][col] in the matrix
@@ -224,6 +245,23 @@ impl IO {
     }
 
     pub fn handle_keyup(&mut self, key: Keycode) {
+        // Special handling for cursor Left and Up (release SHIFT + cursor key)
+        match key {
+            Keycode::Left => {
+                // Release SHIFT + CRSR Right
+                self.keyboard_matrix[7] |= 1 << 1; // Left Shift at row 7, col 1
+                self.keyboard_matrix[2] |= 1 << 0; // CRSR Right at row 2, col 0
+                return;
+            }
+            Keycode::Up => {
+                // Release SHIFT + CRSR Down
+                self.keyboard_matrix[7] |= 1 << 1; // Left Shift at row 7, col 1
+                self.keyboard_matrix[7] |= 1 << 0; // CRSR Down at row 7, col 0
+                return;
+            }
+            _ => {}
+        }
+
         if let Some(&(col, row)) = self.keymap.get(&key) {
             // Keymap stores (col, row) not (row, col)
             // Set the bit at [row][col] in the matrix
@@ -312,11 +350,7 @@ impl IO {
             // Create a streaming texture
             let mut texture = self
                 .texture_creator
-                .create_texture_streaming(
-                    PixelFormatEnum::ARGB8888,
-                    VISIBLE_WIDTH,
-                    VISIBLE_HEIGHT,
-                )
+                .create_texture_streaming(PixelFormatEnum::ARGB8888, VISIBLE_WIDTH, VISIBLE_HEIGHT)
                 .expect("Failed to create texture");
 
             // Upload frame buffer to texture
