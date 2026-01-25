@@ -145,13 +145,48 @@ impl Loader {
         }
     }
 
-    /// Load a PRG file into memory
-    fn load_prg(&mut self) -> Result<(), LoaderError> {
+    /// Get the load address from PRG data
+    fn prg_load_address(&self) -> Option<u16> {
+        if self.data.len() >= 2 {
+            Some(u16::from_le_bytes([self.data[0], self.data[1]]))
+        } else {
+            None
+        }
+    }
+
+    /// Load a PRG file into memory (for ML programs that don't need BASIC)
+    fn load_prg_ml(&mut self) -> Result<(), LoaderError> {
         if self.data.len() < 3 {
             return Err(LoaderError::InvalidProgram);
         }
 
-        // Get load address
+        let load_addr = u16::from_le_bytes([self.data[0], self.data[1]]);
+
+        let mem = self.memory.upgrade().ok_or(LoaderError::NoMemory)?;
+        let mut mem = mem.borrow_mut();
+
+        // Copy data to memory
+        for (i, byte) in self.data[2..].iter().enumerate() {
+            mem.write_byte_no_io(load_addr.wrapping_add(i as u16), *byte);
+        }
+
+        drop(mem);
+
+        // ML program - set PC directly
+        if let Some(cpu) = self.cpu.upgrade() {
+            cpu.borrow_mut().pc = load_addr;
+        }
+        self.state = LoaderState::Running;
+
+        Ok(())
+    }
+
+    /// Load a BASIC PRG file into memory (called after BASIC is ready)
+    fn load_prg_basic(&mut self) -> Result<(), LoaderError> {
+        if self.data.len() < 3 {
+            return Err(LoaderError::InvalidProgram);
+        }
+
         let load_addr = u16::from_le_bytes([self.data[0], self.data[1]]);
 
         let mem = self.memory.upgrade().ok_or(LoaderError::NoMemory)?;
@@ -165,44 +200,33 @@ impl Loader {
         // Calculate end address
         let end_addr = load_addr.wrapping_add((self.data.len() - 2) as u16);
 
-        // If BASIC program, set up pointers
-        if load_addr == 0x0801 {
-            // Set BASIC zero-page pointers correctly for a loaded program
-            // $2B-$2C: Start of BASIC text
-            mem.write_word(0x002B, load_addr);
+        // Set BASIC zero-page pointers correctly for a loaded program
+        // $2B-$2C: Start of BASIC text
+        mem.write_word(0x002B, load_addr);
 
-            // $2D-$2E: End of BASIC text / Start of variables
-            mem.write_word(0x002D, end_addr);
+        // $2D-$2E: End of BASIC text / Start of variables
+        mem.write_word(0x002D, end_addr);
 
-            // $2F-$30: Start of arrays
-            mem.write_word(0x002F, end_addr);
+        // $2F-$30: Start of arrays
+        mem.write_word(0x002F, end_addr);
 
-            // $31-$32: End of arrays / Start of strings
-            mem.write_word(0x0031, end_addr);
+        // $31-$32: End of arrays / Start of strings
+        mem.write_word(0x0031, end_addr);
 
-            // $33-$34: End of strings / Start of free memory
-            mem.write_word(0x0033, end_addr);
-
-            // Drop the borrow before queuing commands
-            drop(mem);
-
-            // For PRG BASIC programs that are already tokenized,
-            // we just type RUN to execute them
-            self.char_queue.push_back('R');
-            self.char_queue.push_back('U');
-            self.char_queue.push_back('N');
-            self.char_queue.push_back('\n');
-            self.state = LoaderState::WaitingForBasic;
-        } else {
-            // ML program - set PC directly
-            drop(mem);
-            if let Some(cpu) = self.cpu.upgrade() {
-                cpu.borrow_mut().pc = load_addr;
-            }
-            self.state = LoaderState::Running;
-        }
+        // $33-$34: End of strings / Start of free memory
+        mem.write_word(0x0033, end_addr);
 
         Ok(())
+    }
+
+    /// Prepare a PRG BASIC file for loading (queue RUN command, wait for BASIC)
+    fn prepare_prg_basic(&mut self) {
+        // Queue RUN command to execute after loading
+        self.char_queue.push_back('R');
+        self.char_queue.push_back('U');
+        self.char_queue.push_back('N');
+        self.char_queue.push_back('\n');
+        self.state = LoaderState::WaitingForBasic;
     }
 
     /// Load a BAS file (prepare for typing)
@@ -266,11 +290,21 @@ impl Loader {
                 // Start loading
                 match self.file_type {
                     FileType::Prg => {
-                        if let Err(e) = self.load_prg() {
-                            eprintln!("Error loading PRG: {:?}", e);
-                            self.state = LoaderState::Complete;
+                        // Check if this is a BASIC program (load address $0801)
+                        let load_addr = self.prg_load_address();
+                        if load_addr == Some(0x0801) {
+                            // BASIC PRG: wait for BASIC to be ready before loading to memory
+                            // This prevents BASIC's init routine from overwriting our pointers
+                            eprintln!("[LOADER] PRG is BASIC program, waiting for BASIC ready");
+                            self.prepare_prg_basic();
                         } else {
-                            eprintln!("[LOADER] PRG loaded, state={:?}", self.state);
+                            // ML program: load immediately and set PC
+                            if let Err(e) = self.load_prg_ml() {
+                                eprintln!("Error loading PRG: {:?}", e);
+                                self.state = LoaderState::Complete;
+                            } else {
+                                eprintln!("[LOADER] ML PRG loaded, state={:?}", self.state);
+                            }
                         }
                     }
                     FileType::Bas => {
@@ -293,7 +327,18 @@ impl Loader {
 
             LoaderState::WaitingForBasic => {
                 if self.is_basic_ready() {
-                    eprintln!("[LOADER] BASIC ready, starting to type");
+                    eprintln!("[LOADER] BASIC ready");
+
+                    // For PRG BASIC files, load to memory NOW (after BASIC has initialized)
+                    if self.file_type == FileType::Prg {
+                        if let Err(e) = self.load_prg_basic() {
+                            eprintln!("Error loading PRG to memory: {:?}", e);
+                            self.state = LoaderState::Complete;
+                            return true;
+                        }
+                        eprintln!("[LOADER] PRG loaded to memory, starting to type RUN");
+                    }
+
                     self.state = LoaderState::TypingBasic;
                     // Get current CPU cycles for timing
                     if let Some(cpu) = self.cpu.upgrade() {
