@@ -92,11 +92,11 @@ fn debug(cpu: Rc<RefCell<Cpu>>, cia1: Rc<RefCell<Cia1>>) {
     }
 }
 
-// uns Klaus Dormann's 6502 test suite
+// Runs Klaus Dormann's 6502 test suite
 //
 // https://github.com/Klaus2m5/6502_65C02_functional_tests
 fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
-    let mut pc: u16 = 0x0;
+    let mut last_pc: u16 = 0x0;
     cpu.borrow_mut()
         .memory
         .write_byte(Memory::ADDR_MEMORY_LAYOUT, 0);
@@ -105,17 +105,39 @@ fn test_cpu(cpu: Rc<RefCell<Cpu>>) {
         .load_ram("tests/6502_functional_test.bin", 0x400)
         .unwrap();
     cpu.borrow_mut().pc = 0x400;
+
+    let mut cycles: u64 = 0;
+    let max_cycles: u64 = 100_000_000;
+
     loop {
-        println!("PC: {:#04X}", pc);
-        if pc == cpu.borrow().pc {
-            println!("Infinit loop at {:#04X}", pc);
-            break;
-        } else if cpu.borrow().pc == 0x3463 {
-            println!("Passed!");
+        let pc_before = cpu.borrow().pc;
+
+        if !cpu.borrow_mut().step() {
+            println!("Unknown opcode encountered at ${:04X}", pc_before);
             break;
         }
-        pc = cpu.borrow().pc;
-        if !cpu.borrow_mut().step() {
+
+        let current_pc = cpu.borrow().pc;
+
+        // Success: test complete at $3469
+        if current_pc == 0x3469 {
+            println!("Test PASSED after {} cycles!", cycles);
+            break;
+        }
+
+        // Trap detection: PC stuck in infinite loop
+        if current_pc == last_pc {
+            // Get test number from memory for debugging
+            let test_num = cpu.borrow().memory.read_byte(0x0200);
+            println!("Test FAILED: trapped at ${:04X}, test number: ${:02X}", current_pc, test_num);
+            break;
+        }
+
+        last_pc = current_pc;
+
+        cycles += 1;
+        if cycles >= max_cycles {
+            println!("Test timeout after {} cycles at ${:04X}", cycles, cpu.borrow().pc);
             break;
         }
     }

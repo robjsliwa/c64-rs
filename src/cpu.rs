@@ -100,7 +100,7 @@ impl<'a> Cpu<'a> {
                 self.op_ora(value, 5);
             }
             0x15 => {
-                let addr = self.addr_zeroy();
+                let addr = self.addr_zerox();
                 let value = self.load_byte(addr);
                 self.op_ora(value, 4);
             }
@@ -171,12 +171,12 @@ impl<'a> Cpu<'a> {
                 self.op_and(value, 5);
             }
             0x35 => {
-                let addr = self.addr_zeroy();
+                let addr = self.addr_zerox();
                 let value = self.load_byte(addr);
                 self.op_and(value, 4);
             }
             0x36 => {
-                let addr = self.addr_zeroy();
+                let addr = self.addr_zerox();
                 self.op_rol(addr, 6);
             }
             0x38 => self.op_sec(),
@@ -703,13 +703,19 @@ impl<'a> Cpu<'a> {
     }
 
     pub fn addr_indx(&mut self) -> u16 {
-        let addr = (self.addr_zero() + self.x as u16) & 0xff;
-        self.memory.read_word(addr)
+        let zp_addr = (self.fetch_op().wrapping_add(self.x)) as u16;
+        // Zero page wrap-around for the pointer read
+        let lo = self.memory.read_byte(zp_addr & 0xFF) as u16;
+        let hi = self.memory.read_byte((zp_addr.wrapping_add(1)) & 0xFF) as u16;
+        (hi << 8) | lo
     }
 
     pub fn addr_indy(&mut self) -> u16 {
-        let addr = self.addr_zero();
-        self.memory.read_word(addr) + self.y as u16
+        let zp_addr = self.fetch_op() as u16;
+        // Zero page wrap-around for the pointer read
+        let lo = self.memory.read_byte(zp_addr) as u16;
+        let hi = self.memory.read_byte((zp_addr.wrapping_add(1)) & 0xFF) as u16;
+        ((hi << 8) | lo).wrapping_add(self.y as u16)
     }
 
     // Advenced cycle count
@@ -817,81 +823,79 @@ impl<'a> Cpu<'a> {
     // ---- Branching Instructions ----
     // BEQ: Branch if Equal (Zero flag is set)
     fn op_beq(&mut self) {
-        let addr: u16 = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8;
         if self.zero {
-            self.branch(addr);
+            self.branch(offset);
         }
         self.tick(2);
     }
 
     // BNE: Branch if Not Equal (Zero flag is clear)
     fn op_bne(&mut self) {
-        let addr: u16 = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8;
         if !self.zero {
-            self.branch(addr);
+            self.branch(offset);
         }
         self.tick(2);
     }
 
     // BCS: Branch if Carry Set
     fn op_bcs(&mut self) {
-        let addr: u16 = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8;
         if self.carry {
-            self.branch(addr);
+            self.branch(offset);
         }
         self.tick(2);
     }
 
     // BCC: Branch if Carry Clear
     fn op_bcc(&mut self) {
-        let addr: u16 = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8;
         if !self.carry {
-            self.branch(addr);
+            self.branch(offset);
         }
         self.tick(2);
     }
 
     // BMI: Branch if Minus (Negative flag is set)
     fn op_bmi(&mut self) {
-        let addr = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8;
         if self.negative {
-            self.branch(addr);
+            self.branch(offset);
         }
         self.tick(2);
     }
 
     // BPL: Branch if Positive (Negative flag is clear)
     fn op_bpl(&mut self) {
-        let addr = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8;
         if !self.negative {
-            self.branch(addr);
+            self.branch(offset);
         }
         self.tick(2);
     }
 
     // BVS: Branch if Overflow Set
     fn op_bvs(&mut self) {
-        let addr: u16 = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8;
         if self.overflow {
-            self.branch(addr);
+            self.branch(offset);
         }
         self.tick(2);
     }
 
     // BVC: Branch if Overflow Clear
     fn op_bvc(&mut self) {
-        let addr: u16 = self.fetch_op() as u16 + self.pc;
+        let offset = self.fetch_op() as i8;
         if !self.overflow {
-            self.branch(addr);
+            self.branch(offset);
         }
+        self.tick(2);
     }
 
-    // Helper function to handle branching
-    // fn branch(&mut self, offset: i8) {
-    //     self.pc = (self.pc as i16 + offset as i16) as u16;
-    // }
-    fn branch(&mut self, addr: u16) {
-        self.pc = addr;
+    // Helper function to handle branching with signed offset
+    fn branch(&mut self, offset: i8) {
+        self.pc = self.pc.wrapping_add(offset as i16 as u16);
     }
 
     // ---- Bitwise Instructions ----
@@ -1010,7 +1014,8 @@ impl<'a> Cpu<'a> {
 
     // PHP: Push Processor Status onto Stack
     fn op_php(&mut self) {
-        let status = self.status_from_flags();
+        // PHP always pushes with break flag (bit 4) set
+        let status = self.status_from_flags() | 0x10;
         self.memory.write_byte(0x0100 + self.sp as u16, status);
         self.sp = self.sp.wrapping_sub(1);
         self.tick(3);
@@ -1155,9 +1160,12 @@ impl<'a> Cpu<'a> {
 
     fn op_jmp_ind(&mut self) {
         let addr = self.addr_abs();
-        let value = self.read_word(addr);
-        self.pc = value;
-        self.tick(3);
+        // 6502 bug: if low byte is $FF, high byte wraps within page
+        let lo = self.read_memory(addr);
+        let hi_addr = (addr & 0xFF00) | ((addr.wrapping_add(1)) & 0x00FF);
+        let hi = self.read_memory(hi_addr);
+        self.pc = (hi as u16) << 8 | lo as u16;
+        self.tick(5);
     }
 
     // JSR: Jump to Subroutine
@@ -1279,11 +1287,16 @@ impl<'a> Cpu<'a> {
     // ---- Other Instructions ----
     // BRK: Break
     fn op_brk(&mut self) {
+        // BRK has a padding byte, so increment PC
+        self.pc = self.pc.wrapping_add(1);
+
         // Push program counter to stack
         self.push_word(self.pc);
 
-        // Push status register to stack
-        self.op_php();
+        // Push status register to stack with break flag set
+        let status = self.status_from_flags() | 0x10; // Set break flag
+        self.memory.write_byte(0x0100 + self.sp as u16, status);
+        self.sp = self.sp.wrapping_sub(1);
 
         // Set interrupt disable flag to prevent further interrupts
         self.interrupt_disable = true;
