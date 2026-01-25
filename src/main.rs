@@ -8,6 +8,7 @@ use clap::{command, Command};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+mod cia;
 mod cia1;
 mod cia2;
 mod common;
@@ -177,8 +178,8 @@ fn main() -> Result<(), String> {
     let memory = Rc::new(RefCell::new(Memory::new()?));
     let cpu = Rc::new(RefCell::new(Cpu::new(memory.clone())));
     let io = Rc::new(RefCell::new(IO::new(cpu.clone())?));
-    let cia1 = Rc::new(RefCell::new(Cia1::new(cpu.clone(), io.clone())));
-    let cia2 = Rc::new(RefCell::new(Cia2::new(cpu.clone())));
+    let cia1 = Rc::new(RefCell::new(Cia1::new(Rc::downgrade(&cpu), Rc::downgrade(&io))));
+    let cia2 = Rc::new(RefCell::new(Cia2::new(Rc::downgrade(&cpu))));
     let vic = Rc::new(RefCell::new(Vic::new(
         Rc::downgrade(&memory),
         Rc::downgrade(&cpu),

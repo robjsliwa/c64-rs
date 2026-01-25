@@ -198,18 +198,35 @@ impl IO {
     }
 
     pub fn keyboard_matrix_row(&self, col: usize) -> u8 {
-        self.keyboard_matrix[col]
+        // The keyboard matrix is stored by row, but we need to read by column
+        // Each row has 8 bits representing columns 0-7
+        // We need to build a byte where each bit represents a row for the given column
+        let mut result = 0xFF; // All keys released (active low)
+        
+        for row in 0..8 {
+            // Check if the bit for this column is clear in this row (key pressed)
+            if (self.keyboard_matrix[row] & (1 << col)) == 0 {
+                // Key is pressed, clear the corresponding row bit
+                result &= !(1 << row);
+            }
+        }
+        
+        result
     }
 
     pub fn handle_keydown(&mut self, key: Keycode) {
-        if let Some(&(row, col)) = self.keymap.get(&key) {
+        if let Some(&(col, row)) = self.keymap.get(&key) {
+            // Keymap stores (col, row) not (row, col)
+            // Clear the bit at [row][col] in the matrix
             let mask = !(1 << col);
             self.keyboard_matrix[row as usize] &= mask;
         }
     }
 
     pub fn handle_keyup(&mut self, key: Keycode) {
-        if let Some(&(row, col)) = self.keymap.get(&key) {
+        if let Some(&(col, row)) = self.keymap.get(&key) {
+            // Keymap stores (col, row) not (row, col)
+            // Set the bit at [row][col] in the matrix
             let mask = 1 << col;
             self.keyboard_matrix[row as usize] |= mask;
         }

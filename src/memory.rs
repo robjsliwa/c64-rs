@@ -233,7 +233,7 @@ impl Memory {
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
                     if let Some(ref cia1_weak) = self.cia1 {
                         if let Some(cia1) = cia1_weak.upgrade() {
-                            return cia1.borrow().read_register((addr & 0x0F) as u8);
+                            return cia1.borrow_mut().read_register((addr & 0x0F) as u8);
                         }
                     }
                     // Return $FF if CIA1 not registered
@@ -246,7 +246,7 @@ impl Memory {
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
                     if let Some(ref cia2_weak) = self.cia2 {
                         if let Some(cia2) = cia2_weak.upgrade() {
-                            return cia2.borrow().read_register((addr & 0x0F) as u8);
+                            return cia2.borrow_mut().read_register((addr & 0x0F) as u8);
                         }
                     }
                     // Return $FF if CIA2 not registered
