@@ -1,5 +1,6 @@
 use crate::cia1::Cia1;
 use crate::cia2::Cia2;
+use crate::vic::Vic;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, Read};
@@ -63,6 +64,7 @@ pub struct Memory {
     color_ram: [u8; 1024],    // Color RAM (1KB for $D800-$DBFF)
     cia1: Option<Weak<RefCell<Cia1>>>,
     cia2: Option<Weak<RefCell<Cia2>>>,
+    vic: Option<Weak<RefCell<Vic>>>,
 }
 
 impl Memory {
@@ -106,6 +108,7 @@ impl Memory {
             color_ram: [0; 1024],
             cia1: None,
             cia2: None,
+            vic: None,
         };
 
         memory
@@ -123,6 +126,11 @@ impl Memory {
     /// Register CIA2 for I/O routing
     pub fn register_cia2(&mut self, cia2: Weak<RefCell<Cia2>>) {
         self.cia2 = Some(cia2);
+    }
+
+    /// Register VIC for I/O routing
+    pub fn register_vic(&mut self, vic: Weak<RefCell<Vic>>) {
+        self.vic = Some(vic);
     }
 
     // Writes a byte to RAM without performing I/O
@@ -143,7 +151,13 @@ impl Memory {
             }
         } else if page >= Self::ADDR_VIC_FIRST_PAGE && page <= Self::ADDR_VIC_LAST_PAGE {
             if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                // VIC not implemented yet - write to RAM as fallback
+                if let Some(ref vic_weak) = self.vic {
+                    if let Some(vic) = vic_weak.upgrade() {
+                        vic.borrow_mut().write_register((addr & 0x3F) as u8, value);
+                        return;
+                    }
+                }
+                // Fallback to RAM if VIC not registered
                 self.mem_ram[addr as usize] = value;
             } else {
                 self.mem_ram[addr as usize] = value;
@@ -193,7 +207,12 @@ impl Memory {
         match page {
             _ if (Self::ADDR_VIC_FIRST_PAGE..=Self::ADDR_VIC_LAST_PAGE).contains(&page) => {
                 if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Io.as_u8() {
-                    // VIC not implemented yet - return $FF
+                    if let Some(ref vic_weak) = self.vic {
+                        if let Some(vic) = vic_weak.upgrade() {
+                            return vic.borrow().read_register((addr & 0x3F) as u8);
+                        }
+                    }
+                    // Return $FF if VIC not registered
                     0xFF
                 } else if self.banks[Banks::BankCharen.to_usize()] == BankCfg::Rom.as_u8() {
                     self.mem_rom[addr as usize]
@@ -366,8 +385,9 @@ impl Memory {
 
         let address = base.wrapping_add(vic_addr & 0x3FFF);
 
-        // Character ROM visible in banks 0 and 2 at $1000-$1FFF
-        if bank == 0 || bank == 2 {
+        // Character ROM visible in actual VIC banks 0 and 2 at $1000-$1FFF
+        // With inverted bank selection: bank=3 is actual bank 0, bank=1 is actual bank 2
+        if bank == 3 || bank == 1 {
             let local_addr = vic_addr & 0x3FFF;
             if (0x1000..=0x1FFF).contains(&local_addr) {
                 return self.mem_rom[(Self::BASE_ADDR_CHARS + (local_addr & 0x0FFF)) as usize];

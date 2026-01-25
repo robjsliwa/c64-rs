@@ -1,11 +1,24 @@
 use super::cpu::Cpu;
+use crate::vic::constants::{VISIBLE_HEIGHT, VISIBLE_WIDTH};
 use sdl2::keyboard::Keycode;
-use sdl2::render::WindowCanvas;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::{Canvas, TextureCreator};
+use sdl2::video::{Window, WindowContext};
 use sdl2::EventPump;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 use std::vec::Vec;
+
+// Window scale factor (2x)
+const SCALE: u32 = 2;
+const WINDOW_WIDTH: u32 = VISIBLE_WIDTH * SCALE;
+const WINDOW_HEIGHT: u32 = VISIBLE_HEIGHT * SCALE;
+const FRAME_BUFFER_SIZE: usize = (VISIBLE_WIDTH * VISIBLE_HEIGHT) as usize;
+
+// Target frame duration for ~50Hz
+const FRAME_DURATION_NS: u64 = 19_950_125; // ~50.125 Hz
 
 pub struct IO {
     cpu: Rc<RefCell<Cpu>>,
@@ -16,8 +29,10 @@ pub struct IO {
     next_key_event_at: u32,
     event_pump: EventPump,
     retval: bool,
-    renderer: WindowCanvas,
-    frame: Vec<u32>,
+    renderer: Canvas<Window>,
+    texture_creator: TextureCreator<WindowContext>,
+    frame_buffer: Box<[u32; FRAME_BUFFER_SIZE]>,
+    frame_start: Instant,
 }
 
 enum KeyEvent {
@@ -27,27 +42,23 @@ enum KeyEvent {
 
 impl IO {
     pub const WAIT_DURATION: u32 = 18000;
+
     pub fn new(cpu: Rc<RefCell<Cpu>>) -> Result<Self, String> {
         let sdl_context = sdl2::init()?;
         let video_subsystem = sdl_context.video()?;
 
         let window = video_subsystem
-            .window("Commodore C64", 800, 600)
+            .window("Commodore C64", WINDOW_WIDTH, WINDOW_HEIGHT)
             .position_centered()
-            .opengl()
             .build()
             .map_err(|e| e.to_string())?;
 
-        let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-        // TODO: get these values from VIC-II
-        let cols = 80;
-        let rows = 25;
-        let frame: Vec<u32> = vec![0; cols * rows];
+        let canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+        let texture_creator = canvas.texture_creator();
+        let frame_buffer = Box::new([0u32; FRAME_BUFFER_SIZE]);
 
-        // canvas.set_draw_color(Color::RGB(255, 0, 0));
-        canvas.clear();
-        canvas.present();
         let event_pump = sdl_context.event_pump()?;
+
         let mut io = IO {
             cpu,
             keyboard_matrix: [0xff; 8],
@@ -58,10 +69,12 @@ impl IO {
             event_pump,
             retval: true,
             renderer: canvas,
-            frame,
+            texture_creator,
+            frame_buffer,
+            frame_start: Instant::now(),
         };
 
-        // Initilize charmap
+        // Initialize charmap
         io.charmap.insert('A', vec![Keycode::A]);
         io.charmap.insert('B', vec![Keycode::B]);
         io.charmap.insert('C', vec![Keycode::C]);
@@ -229,7 +242,7 @@ impl IO {
                     ..
                 } => self.handle_keyup(keycode),
                 sdl2::event::Event::Quit { .. } => {
-                    self.retval = false; // This will signal to exit the main loop
+                    self.retval = false;
                 }
                 _ => {}
             }
@@ -251,22 +264,83 @@ impl IO {
         self.retval
     }
 
-    fn screen_update_pixel(&mut self, x: i32, y: i32, color: u32) {
-        // Implementation for updating a single pixel
+    /// Set a single pixel in the frame buffer
+    #[inline]
+    pub fn put_pixel(&mut self, x: u32, y: u32, color: u32) {
+        if x < VISIBLE_WIDTH && y < VISIBLE_HEIGHT {
+            let offset = (y * VISIBLE_WIDTH + x) as usize;
+            self.frame_buffer[offset] = color;
+        }
     }
 
-    fn screen_draw_rect(&mut self, x: i32, y: i32, n: i32, color: u32) {
-        // Implementation for drawing a rectangle
+    /// Fill a rectangle in the frame buffer
+    pub fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, color: u32) {
+        let x_end = (x + w).min(VISIBLE_WIDTH);
+        let y_end = (y + h).min(VISIBLE_HEIGHT);
+
+        for py in y..y_end {
+            let row_offset = (py * VISIBLE_WIDTH) as usize;
+            for px in x..x_end {
+                self.frame_buffer[row_offset + px as usize] = color;
+            }
+        }
     }
 
-    fn screen_draw_border(&mut self, y: i32, color: u32) {
-        // Implementation for drawing a border
+    /// Refresh the display - upload frame buffer to texture and present
+    pub fn refresh(&mut self) {
+        // Create texture, render, and present in a block to ensure texture is dropped
+        {
+            // Create a streaming texture
+            let mut texture = self
+                .texture_creator
+                .create_texture_streaming(
+                    PixelFormatEnum::ARGB8888,
+                    VISIBLE_WIDTH,
+                    VISIBLE_HEIGHT,
+                )
+                .expect("Failed to create texture");
+
+            // Upload frame buffer to texture
+            texture
+                .with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                    for y in 0..VISIBLE_HEIGHT as usize {
+                        for x in 0..VISIBLE_WIDTH as usize {
+                            let src_offset = y * VISIBLE_WIDTH as usize + x;
+                            let dst_offset = y * pitch + x * 4;
+                            let pixel = self.frame_buffer[src_offset];
+
+                            // ARGB8888 format (little-endian byte order: B, G, R, A)
+                            buffer[dst_offset] = pixel as u8; // B
+                            buffer[dst_offset + 1] = (pixel >> 8) as u8; // G
+                            buffer[dst_offset + 2] = (pixel >> 16) as u8; // R
+                            buffer[dst_offset + 3] = (pixel >> 24) as u8; // A
+                        }
+                    }
+                })
+                .expect("Failed to lock texture");
+
+            // Copy texture to renderer (with scaling)
+            self.renderer
+                .copy(&texture, None, None)
+                .expect("Failed to copy texture");
+
+            // Present
+            self.renderer.present();
+        }
+
+        // VSync timing (after texture is dropped)
+        self.vsync();
     }
 
-    fn screen_refresh(&mut self) {
-        // Clear the renderer, copy texture, and present
-        self.renderer.clear();
-        // Additional rendering operations...
-        self.renderer.present();
+    /// Wait for vsync timing (~50Hz)
+    fn vsync(&mut self) {
+        let elapsed = self.frame_start.elapsed();
+        let target = Duration::from_nanos(FRAME_DURATION_NS);
+
+        if elapsed < target {
+            std::thread::sleep(target - elapsed);
+        }
+
+        self.frame_start = Instant::now();
     }
 }

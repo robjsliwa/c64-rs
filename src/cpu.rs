@@ -649,12 +649,16 @@ impl Cpu {
     }
 
     pub fn irq(&mut self) {
+        // IRQs are ignored when the interrupt disable flag is set
+        if self.interrupt_disable {
+            return;
+        }
+
         // Push the current program counter onto the stack
         self.push_word(self.pc);
 
-        // Push the processor status onto the stack
-        self.status_from_flags();
-        self.push(self.status);
+        // Push the processor status onto the stack (with break flag clear)
+        self.push(self.status_from_flags() & 0xEF);
 
         // Set the IRQ disable flag
         self.interrupt_disable = true;
@@ -663,6 +667,8 @@ impl Cpu {
         let lo = self.mem_read(Memory::ADDR_IRQ_VECTOR) as u16;
         let hi = self.mem_read(Memory::ADDR_IRQ_VECTOR + 1) as u16;
         self.pc = (hi << 8) | lo;
+
+        self.tick(7);
     }
 
     pub fn load_byte(&self, addr: u16) -> u8 {
@@ -746,22 +752,6 @@ impl Cpu {
     /// Reads a byte from the memory the CPU is using
     pub fn read_memory(&self, addr: u16) -> u8 {
         self.mem_read(addr)
-    }
-
-    /// Read a word from the memory the CPU is using
-    /// The 6502 is little endian, so the first byte is the LSB
-    /// and the second byte is the MSB
-    fn read_word(&self, addr: u16) -> u16 {
-        let lsb = self.read_memory(addr) as u16;
-        let msb = self.read_memory(addr + 1) as u16;
-        lsb | (msb << 8)
-    }
-
-    fn write_word(&mut self, addr: u16, value: u16) {
-        let lsb = value as u8;
-        let msb = (value >> 8) as u8;
-        self.write_memory(addr, lsb);
-        self.write_memory(addr + 1, msb);
     }
 
     // ---- Math Instructions ----
@@ -1186,6 +1176,7 @@ impl Cpu {
         // Push the return address (minus one) onto the stack
         self.push_word(self.pc.wrapping_sub(1));
         self.pc = addr;
+        self.tick(6);
     }
 
     // RTS: Return from Subroutine
@@ -1196,9 +1187,15 @@ impl Cpu {
 
     // RTI: Return from Interrupt
     fn op_rti(&mut self) {
-        self.op_plp();
+        // Pull status from stack (don't use op_plp as it has wrong cycle count)
+        self.sp = self.sp.wrapping_add(1);
+        let status = self.mem_read(0x0100 + self.sp as u16);
+        self.flags_from_status(status);
+
+        // Pull PC from stack
         self.pc = self.pull_word();
-        self.tick(7);
+
+        self.tick(6);
     }
 
     // Helper functions for stack operations
@@ -1259,6 +1256,7 @@ impl Cpu {
     // CLC: Clear Carry Flag
     fn op_clc(&mut self) {
         self.carry = false;
+        self.tick(2);
     }
 
     // SEC: Set Carry Flag
